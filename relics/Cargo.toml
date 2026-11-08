@@ -1,0 +1,10 @@
+[package]
+name = "mmv_relics"
+version = "1.0.0"
+edition = "2024"
+description = "MMV 空城整合包自定义遗物词条：以原版行为模板复制并改字段，加进 regulation"
+publish = false
+
+[dependencies]
+nr_stat_alloc_shared = { path = "../shared" }
+nr_stat_alloc_patcher = { path = "../patcher" }

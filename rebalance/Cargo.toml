@@ -1,0 +1,10 @@
+[package]
+name = "mmv_rebalance"
+version = "1.0.0"
+edition = "2024"
+description = "MMV 空城整合包首领强度重平衡：保留深夜层数，回退空城血量加成，新首领对齐原版同档首领"
+publish = false
+
+[dependencies]
+nr_stat_alloc_shared = { path = "../shared" }
+nr_stat_alloc_patcher = { path = "../patcher" }

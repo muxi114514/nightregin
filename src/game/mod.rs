@@ -1,0 +1,33 @@
+//! 游戏访问层：只负责内存读取与原生函数调用，不含任何加点规则。
+
+pub mod addresses;
+pub mod code_patch;
+pub mod currency;
+pub mod equip_data;
+pub mod equip_ops;
+pub mod event_flags;
+pub mod flasks;
+pub mod gaitem;
+#[cfg(feature = "tiered-diag")]
+pub mod hw_breakpoint;
+pub mod inventory;
+pub mod memory;
+pub mod menu;
+pub mod mixcraft;
+pub mod msg;
+pub mod module;
+pub mod param_patch;
+pub mod params;
+pub mod player_data;
+pub mod private_item;
+pub mod relic;
+pub mod rtti;
+pub mod runes;
+pub mod scan;
+pub mod singleton;
+pub mod sixth_sense;
+pub mod sound;
+pub mod sp_effect;
+pub mod steam;
+pub mod task;
+pub mod world;

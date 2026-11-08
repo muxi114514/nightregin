@@ -1,0 +1,30 @@
+/* 启动过场（照草图 v4 移植）：标题菜单、状态行、横带与首页按键提示（.hmenu 一层）整体淡出，原位置换成四步。
+   淡出放在外层：状态行、横带自己带入场动画，同一元素上再改 opacity 会被合成器里没放完的入场动画盖住 */
+.hmenu{position:absolute;inset:0;transition:opacity .4s}
+#home[data-mode=launch] .hmenu{opacity:0;pointer-events:none}
+.steps{position:absolute;left:392px;top:354px;width:470px;list-style:none;opacity:0;pointer-events:none;transition:opacity .45s .2s}
+#home[data-mode=launch] .steps{opacity:1}
+.step{position:relative;display:flex;align-items:center;gap:14px;height:44px;opacity:.4;transition:opacity .3s}
+/* 进行中的柔光只垫在「八角框 + 步骤名」这一块后面 */
+.step::before{content:"";position:absolute;left:-50px;width:270px;top:-8px;bottom:-8px;background:url(/assets/title_cursor.png) center/100% 100%;opacity:0;transition:opacity .3s}
+.step.run::before{opacity:.5}
+.step.run,.step.ok,.step.err{opacity:1}
+/* 失败时步骤浮到遮罩之上，失败那一步始终看得见 */
+.steps.fail{z-index:36}
+.modal .step::before{opacity:0!important}
+.step img{position:relative;width:28px;height:28px}
+.step.run img{animation:breathe 1.4s ease-in-out infinite}
+.step .n{position:relative;width:86px;font:500 18px var(--serif);color:var(--hi);letter-spacing:.08em}
+.step .d{position:relative;font:14px var(--sans);color:var(--dim)}
+.step.ok .n{color:var(--tx)}
+.step.err .n,.step.err .d{color:var(--err)}
+/* 唤起时的一行字：游戏载入中 / 游戏仍在载入 */
+.lmsg{position:absolute;left:0;right:0;top:560px;text-align:center;font:500 19px var(--serif);color:var(--hi);letter-spacing:.12em;opacity:0;transition:opacity .5s}
+.lmsg.on{opacity:1}
+.lkeys{left:0;right:0;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s}
+#home[data-mode=launch] .lkeys{opacity:1;pointer-events:auto}
+/* 游戏窗口出现后渐黑：居中一行「游戏运行中」+ 底部可点的「切到游戏」；拖动区和窗口按钮仍在上面 */
+.veil{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:var(--bg);opacity:0;pointer-events:none;transition:opacity .8s}
+.veil.on{opacity:1;pointer-events:auto}
+.vmsg{font:500 19px var(--serif);color:var(--tx2);letter-spacing:.12em}
+.vkeys{left:0;right:0;justify-content:center}

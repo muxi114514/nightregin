@@ -1,0 +1,83 @@
+/* 图鉴：法环物品栏式。标签横幅切分类；左边「显示 / 查找」两行 + 网格（缩略图列表、单行列表）；右边固定高度的说明面板 */
+#codex .head{top:140px}
+#wrows{top:184px;max-height:none;overflow:visible}
+#ckeys{right:48px}
+/* 「显示」只有一个取值时隐藏这一行，条目区跟着上提 */
+#codex.one #wrows .row[data-z="0"]{display:none}
+/* 查找：法环式单行输入，平时只读，Enter 或单击后才能输入 */
+.wq{width:260px;font:500 16px/1.2 var(--serif);color:var(--tx);background:none;border:0;outline:0;caret-color:var(--gold);user-select:text;pointer-events:none}
+.wq::placeholder{color:var(--mute)}
+.row.edit .wq{color:var(--hi);pointer-events:auto}
+.row.edit .lb,.row.edit.sel .lb{color:var(--gold)}
+.wbox{position:absolute;left:58px;top:268px;width:562px;height:414px;overflow-y:auto;scrollbar-width:none;list-style:none}
+#codex.one .wbox{top:228px;height:454px}
+.wbox::-webkit-scrollbar{display:none}
+.wbox.dn{-webkit-mask-image:linear-gradient(var(--bg) calc(100% - 36px),transparent);mask-image:linear-gradient(var(--bg) calc(100% - 36px),transparent)}
+/* 物品栏网格：5 列；可见的几行用淡空格补满；光标是物品栏的 SL_Cursor，略降饱和 */
+.wgrid{display:grid;grid-template-columns:repeat(5,100px);gap:3px;padding:2px 0 2px 21px}
+.wcell{position:relative;width:100px;height:100px;display:grid;place-items:center;background:url(/assets/slot.png) center/100% 100%;cursor:pointer}
+.wcell.e{opacity:.38;cursor:default}
+.wcell .i{position:relative;max-width:80px;max-height:80px}
+/* 圆形头像裁成格框内的方形，不露出圆边 */
+.wcell .i.pt{position:absolute;left:50%;top:50%;width:118px;height:118px;max-width:none;max-height:none;margin:-59px 0 0 -59px;clip-path:inset(18px)}
+.wcell .cur{position:absolute;left:-11px;top:-11px;width:122px;height:122px;z-index:2;opacity:0;filter:saturate(.8);transition:opacity .14s;pointer-events:none}
+.wcell.f .cur{opacity:.3}
+.wbox.on .wcell.f .cur{opacity:.85}
+.modal .wcell .cur{opacity:0}
+/* 本版新增：法环自己的新物品标记（金色「!」），放在格框内角 */
+.nw{position:absolute;left:10px;top:9px;z-index:3;height:15px}
+.tab .nb{position:absolute;right:-11px;top:1px;width:8px;height:14px}
+.wl{list-style:none}
+.row .nw{position:static;height:16px;margin-left:4px}
+.row .ic{flex:none;width:32px;height:32px}
+.row .kd{margin-left:14px;font:14px var(--serif);color:var(--dim)}
+/* 单行列表 / 缩略图列表：焦点不在条目区时，选中行的高亮压暗 */
+.wbox:not(.on) .row.sel::before,.wbox:not(.on) .row.sel::after{opacity:.3}
+.wbox:not(.on) .row.sel .lb{color:var(--tx)}
+/* 缩略图列表：行高 64，格框缩略图 + 名称 + 一句说明 */
+.row.wth{height:64px;gap:16px}
+.wth .tb{flex:none;width:56px;height:56px;display:grid;place-items:center;background:url(/assets/slot.png) center/100% 100%}
+.wth .tb img{max-width:44px;max-height:44px}
+.wth .tx{flex:1;min-width:0}
+.wth .lb{display:block}
+.wth .ln{display:block;margin-top:5px;font:14px var(--serif);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 查找无结果 / 空分类：两行淡字，不做卡片 */
+.wnone{padding-top:118px;text-align:center;font:500 17px/1.8 var(--serif);color:var(--tx2);letter-spacing:.04em}
+.wnone span{display:block;font:14px var(--serif);color:var(--mute);letter-spacing:0}
+.tab.none .ic{opacity:.3}.tab.none .tl{color:var(--mute)}
+/* 说明面板：固定高度；正文溢出时右侧出现 scroll_waku 细滚动条，R 展开「详细说明」 */
+.desc.wk{height:530px;display:flex;flex-direction:column}
+.desc.wk>*{flex:none}
+.pic.rd{width:92px;height:92px}
+.pic.box{background:url(/assets/unchku_s.png) center/100% 100%}
+.pic.box img{max-width:74px;max-height:74px}
+.wtag{display:flex;align-items:center;gap:6px;margin-top:3px;font:14px var(--serif);color:var(--dim)}
+.wtag .nw{position:static;height:13px}
+.wbody{flex:1 1 auto!important;min-height:0;overflow-y:auto;scrollbar-width:none;padding-right:12px}
+.wbody::-webkit-scrollbar{display:none}
+.wbody.dn{-webkit-mask-image:linear-gradient(var(--bg) calc(100% - 44px),transparent);mask-image:linear-gradient(var(--bg) calc(100% - 44px),transparent)}
+.wsb{position:absolute;right:-10px;width:10px;background:url(/assets/scroll_waku.png) center/100% 100%;opacity:.7}
+.wsb i{position:absolute;left:3px;top:0;width:4px;background:url(/assets/scroll_bar.png) center/100% 100%;opacity:.6;filter:saturate(.5)}
+/* 数值：短的两两并排，长的占一整行 */
+.kv{display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:row dense;gap:0 18px;margin-bottom:6px}
+.kv div{display:flex;gap:12px;min-width:0}
+.kv div.w{grid-column:1/-1}
+.kv dt{flex:none;font:14px/25px var(--serif);color:var(--dim)}
+.kv dd{font:15px/25px var(--serif);color:var(--tx)}
+/* 带小标题的说明段（武器的战技） */
+.wsec{margin-top:8px}
+.wsec dt{font:500 15px/1.7 var(--serif);color:var(--gold)}
+.wsec dd{font:15px/1.85 var(--serif);color:var(--tx)}
+/* 详细说明：收起头图、数值与形态行，正文占满面板 */
+.desc.wk.det .pic,.desc.wk.det .meta,.desc.wk.det .wtag,.desc.wk.det .kv,.desc.wk.det .ever{display:none}
+.desc.wk .lore{white-space:pre-line}
+.wfoot{padding-top:10px}
+.desc .wsrc{font:14px/1.7 var(--serif);color:var(--tx2)}
+.wsrc b{font-weight:500;color:var(--gold);margin-right:10px}
+.desc .wnote{font:14px/1.7 var(--sans);color:var(--dim)}
+/* 手写内容：暗色斜体 */
+.desc .ph,.kd.ph{color:var(--mute);font-style:italic}
+.ever{display:flex;align-items:center;gap:12px;margin-bottom:6px;font:15px/1.6 var(--serif);color:var(--tx)}
+.ever img{width:40px;height:40px}
+/* 缺图时不露破图标 */
+img.gone{display:none}

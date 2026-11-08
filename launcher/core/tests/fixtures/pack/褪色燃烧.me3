@@ -1,0 +1,66 @@
+profileVersion = "v1"
+# 与 SeamlessCoop\nrsc_settings.ini 的 save_file_extension（默认 co2）保持一致
+savefile = "NR0000.co2"
+# 无缝联机走自己的 P2P，不连官方服务器
+start_online = false
+disable_arxan = true
+
+[[supports]]
+game = "nightreign"
+
+[[natives]]
+path = "./SeamlessCoop/nrsc.dll"
+load_early = true
+
+[[natives]]
+path = "./NightreignPLUS/Nightreign6PlayerFixes.v1.1.1/LilyHook.dll"
+load_after = [{ id = "nrsc.dll", optional = false }]
+
+[[natives]]
+path = "./DepthChange/nighter.dll"
+load_after = [{ id = "nrsc.dll", optional = false }]
+
+[[natives]]
+path = 'dll/custom_drop_fxrs.dll'
+load_early = true
+
+[[natives]]
+path = 'dll/unlock_wwise_states_nr.dll'
+load_early = true
+
+[[natives]]
+path = 'dll/target/release/nrallinone.dll'
+load_early = true
+
+[[natives]]
+path = 'dll/RestoredLegendaryStones.dll'
+load_early = true
+
+[[natives]]
+path = 'dll/ChanceSetter.dll'
+load_early = true
+
+# 可选：4~6 号位复仇者召唤修复（测试版），需要时去掉下面三行开头的 #
+# [[natives]]
+# path = "./RevenantFix/RevenantFix.dll"
+# load_after = [{ id = "nrsc.dll", optional = false }]
+
+# 属性分配
+[[natives]]
+path = "./StatAlloc/nr_stat_alloc.dll"
+load_after = [{ id = "nrsc.dll", optional = false }]
+
+[[packages]]
+id = "Nightreign6PlayerFixes.v1.1.1"
+source = "./NightreignPLUS/Nightreign6PlayerFixes.v1.1.1"
+
+# MMV 本体；要写 id，否则下面的 load_after 在启动时找不到它（只写 path 的包没有 id）
+[[packages]]
+id = "MMV"
+source = "mod"
+
+# 不带空城包（modKongCheng）：属性分配用以 MMV 本体为底的 pkg_mmv（regulation = MMV + 首领重平衡 + 自定义词条 + 属性组件），排在 MMV 之后
+[[packages]]
+id = "StatAlloc"
+source = "./StatAlloc/pkg_mmv"
+load_after = [{ id = "MMV", optional = false }]

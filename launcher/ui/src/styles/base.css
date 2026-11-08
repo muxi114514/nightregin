@@ -1,0 +1,83 @@
+/* 共用样式：令牌、舞台、窗口按钮、动效规则、按键提示、标题菜单、提示横带、选项（照草图 v4 移植） */
+
+/* 随包带的 Noto Serif SC 子集（build.ps1 按界面文字裁出），玩家机器没装衬线字体也不回落到宋体 */
+@font-face{font-family:"GA Serif";src:url(/fonts/serif_sub.woff) format("woff");font-weight:200 900;font-display:block}
+:root{
+  --hi:#efe6cf;--tx:#bcb197;--tx2:#a39880;--dim:#918670;--mute:#6f6756;--gold:#c9a679;--lore:#9d927a;--err:#e08a52;
+  --wbtn:#5a5446;--glow:rgba(201,166,121,.3);
+  --bg:#000;--mask:rgba(0,0,0,.78);--band:rgba(0,0,0,.92);
+  --serif:"GA Serif","Noto Serif SC","Source Han Serif SC","思源宋体",serif;
+  --sans:"Microsoft YaHei UI","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);overflow:hidden}
+body{color:var(--tx);font:15px/1.6 var(--serif);user-select:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+img{display:block}
+[hidden]{display:none!important}
+
+/* 设计稿 1200×720，scale.ts 整体等比缩放 */
+#stage{position:absolute;left:0;top:0;width:1200px;height:720px;transform-origin:0 0;overflow:hidden;background:var(--bg)}
+/* 余烬压到画面下半部，右上角额外压暗，避免贴着窗口按钮像漏光 */
+.bg{position:absolute;inset:0;overflow:hidden}
+.bg img{position:absolute;left:-160px;top:290px;width:1360px;height:765px;opacity:.62;-webkit-mask-image:linear-gradient(transparent,var(--bg) 18%);mask-image:linear-gradient(transparent,var(--bg) 18%)}
+.bg::after{content:"";position:absolute;inset:0;background:radial-gradient(560px 360px at 100% 0,var(--bg) 30%,transparent 80%)}
+.dim{position:absolute;inset:0;background:var(--bg);opacity:0;transition:opacity .45s;pointer-events:none}
+/* 拖动区和窗口按钮在遮罩之上，弹窗时也能拖动、最小化、关闭 */
+.drag{position:absolute;left:0;top:0;right:96px;height:26px;z-index:44}
+.win{position:absolute;top:2px;right:8px;display:flex;z-index:45}
+.win button{position:relative;width:40px;height:26px;color:var(--wbtn)}
+.win button::before{content:"";position:absolute;inset:-2px 4px;background:radial-gradient(closest-side,var(--glow),transparent);opacity:0;transition:opacity .2s}
+.win button:hover::before{opacity:1}
+.win i{position:absolute;left:14px;right:14px;top:12px;height:1.5px;background:currentColor}
+.win .x i{transform:rotate(45deg)}.win .x i+i{transform:rotate(-45deg)}
+.screen{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .4s}
+.screen.on{opacity:1;pointer-events:auto}
+/* 弹窗时下层整屏压到 .14，横带里不再透出下层文字；启动失败时只藏标志（dialog.css） */
+.modal:not(.mfail) .screen.on{opacity:.14;transition:opacity .2s}
+.modal .screen .keys{visibility:hidden}
+
+/* 动效只改 transform / opacity。html.paused（窗口隐藏、游戏运行、低特效）时暂停循环动画；
+   一次性入场动画不暂停，免得低特效下停在透明帧 */
+.screen:not(.on) .loop,.paused .loop,.screen:not(.on) .brz,.paused .brz{animation-play-state:paused}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+@keyframes fadein{from{opacity:0}}
+@keyframes breathe{50%{opacity:.6}}
+/* 进行中的文字：很淡的呼吸，不用转圈 */
+.brz{animation:breathe 2.6s ease-in-out infinite}
+
+/* 法环 PC 按键提示：按键贴图 + 文字，横排在底部；能执行的做成按钮 */
+.keys{position:absolute;bottom:16px;display:flex;gap:24px;font:14px/26px var(--sans);color:var(--dim)}
+.keys span,.keys button{display:flex;align-items:center;gap:8px}
+.keys button:hover{color:var(--hi)}
+.keys img{height:26px}
+
+/* 标题菜单：Title_Cursor 柔光光标随选中项滑动（--i 由 menu.ts 设） */
+.tmenu{--tm:38px;position:absolute;left:420px;top:350px;width:360px;transition:opacity .4s}
+.tcur{position:absolute;left:-60px;top:-12px;width:480px;height:62px;pointer-events:none;transform:translateY(calc(var(--i,0) * var(--tm)));transition:transform .16s ease-out;animation:fadein .9s .55s ease-out both}
+.tcur i{display:block;width:100%;height:100%;background:url(/assets/title_cursor.png) center/100% 100%;animation:breathe 3.2s ease-in-out infinite}
+.tcur.off,.modal .tcur{visibility:hidden}
+.tmenu button{position:relative;display:block;width:100%;height:var(--tm);font:500 20px/var(--tm) var(--serif);letter-spacing:.14em;text-indent:.14em;color:var(--tx2);text-shadow:0 1px 3px var(--bg);animation:rise .9s ease-out both}
+.tmenu button.sel{color:var(--hi)}
+.tmenu button.off{color:var(--mute);cursor:default}
+.tmenu span{position:relative}
+
+/* 法环提示横带：MENU_FL_Dialog 横贯全宽，上下两道细边不拉伸 */
+.band{border:solid transparent;border-width:24px 0;border-image:url(/assets/dialog.png) 24 0 fill/24px 0}
+.issue{position:absolute;left:0;right:0;top:568px;border-width:22px 0;border-image-width:22px 0;text-align:center;background:linear-gradient(90deg,transparent,var(--band) 8%,var(--band) 92%,transparent) padding-box;animation:fadein .6s .8s both;transition:opacity .4s}
+.issue p{display:flex;align-items:center;justify-content:center;gap:12px;font:500 17px/24px var(--serif);color:var(--hi);letter-spacing:.06em}
+.issue .bang{flex:none;width:11px;height:20px;background:url(/assets/bang.png) center/100% 100%}
+.issue p span{font:14px var(--serif);color:var(--dim);letter-spacing:0}
+.issue .opt{margin-top:2px;height:34px;line-height:34px}
+
+/* 对话框和横带里的选项：Cursor_Wide 高亮 */
+.opt{position:relative;min-width:120px;height:38px;padding:0 20px;font:500 17px/38px var(--serif);letter-spacing:.1em;color:var(--tx)}
+.opt::before{content:"";position:absolute;left:-18px;right:-18px;top:0;bottom:0;background:url(/assets/cur_wide.png) center/100% 100%;opacity:0;transition:opacity .14s}
+.opt.sel{color:var(--hi)}.opt.sel::before{opacity:1}
+.modal .issue .opt::before{opacity:0}
+.opt span{position:relative}
+
+/* 不打断的提示（toast.ts）：左下角，压在弹窗与渐黑之上 */
+.toast{position:absolute;left:48px;bottom:16px;max-width:300px;z-index:46;font:14px/26px var(--sans);color:var(--tx);opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.on{opacity:1}

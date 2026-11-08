@@ -1,0 +1,14 @@
+# 启动器 workspace：core 放全部逻辑（可单测），app 是 Tauri 外壳；与上层 DLL 的 workspace 互不包含
+[workspace]
+members = ["core", "app"]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+
+[profile.release]
+opt-level = "s"
+lto = "thin"
+codegen-units = 4
+strip = "debuginfo"

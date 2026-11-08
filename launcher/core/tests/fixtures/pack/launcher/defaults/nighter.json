@@ -1,0 +1,17 @@
+{
+  "forceUnlockDeepNight": true,
+  "forceDeepNight": {
+    "enable": true,
+    "level": 5
+  },
+  "bypassOnlineCheck": true,
+  "superNightLordList": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ]
+}

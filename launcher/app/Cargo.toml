@@ -1,0 +1,39 @@
+[package]
+name = "launcher"
+edition.workspace = true
+version.workspace = true
+
+[[bin]]
+name = "nrga-launcher"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = "~2.7.1"
+
+[dependencies]
+tauri = { version = "~2.12.0", features = ["tray-icon", "custom-protocol"] }
+tauri-plugin-single-instance = "~2.5"
+tauri-plugin-dialog = "2"
+launcher-core = { path = "../core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+# 关 WebView2 右键菜单和浏览器快捷键：Interface::cast 在 windows::core 里，不需要额外 feature
+webview2-com = "0.39"
+windows = { version = "0.62", features = ["Win32_System_Com", "Win32_UI_Shell", "Win32_Storage_FileSystem"] }
+windows-version = "0.1"
+
+# 原生对话框、单实例预检、读 WebView2 注册表、去掉 Win11 系统边框（与 core 用同一版本）
+[dependencies.windows-sys]
+version = "0.61"
+features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_System_Registry",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+]
+
+[dev-dependencies]
+tempfile = "3"

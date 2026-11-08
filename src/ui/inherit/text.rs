@@ -1,0 +1,110 @@
+//! 词条继承面板文字（中英两套），字形收集见 ui/mod.rs。
+
+use crate::lang::{self, Lang};
+
+/// 预览里每条词条前的点
+pub const BULLET: &str = "◆ ";
+
+pub struct Texts {
+    pub window: &'static str,
+    pub title: &'static str,
+    pub waiting: &'static str,
+    pub section_weapons: &'static str,
+    pub right_hand: &'static str,
+    pub left_hand: &'static str,
+    pub empty: &'static str,
+    pub step_source: &'static str,
+    pub step_target: &'static str,
+    pub step_confirm: &'static str,
+    pub tag_source: &'static str,
+    pub tag_target: &'static str,
+    pub tag_lower: &'static str,
+    pub no_passives: &'static str,
+    /// 当前稀有度 0~3
+    pub rarity: [&'static str; 4],
+    pub section_preview: &'static str,
+    pub source_label: &'static str,
+    pub target_label: &'static str,
+    pub current: &'static str,
+    pub after: &'static str,
+    pub pick_source_first: &'static str,
+    pub pick_target: &'static str,
+    pub replaced: &'static str,
+    pub inherit_button: &'static str,
+    pub confirm_again: &'static str,
+    pub pending: &'static str,
+    pub rule: &'static str,
+    pub prompt: &'static str,
+    pub pad_prompt: &'static str,
+}
+
+pub fn tx() -> &'static Texts {
+    match lang::current() {
+        Lang::Zh => &ZH,
+        Lang::En => &EN,
+    }
+}
+
+static ZH: Texts = Texts {
+    window: "继承词条##nr_inherit",
+    title: "继承词条",
+    waiting: "正在读取武器……",
+    section_weapons: "携带的武器",
+    right_hand: "右手",
+    left_hand: "左手",
+    empty: "（空）",
+    step_source: "第 1 步：选择来源武器（继承后消失）",
+    step_target: "第 2 步：选择接收词条的目标武器",
+    step_confirm: "第 3 步：在右侧确认继承",
+    tag_source: "来源",
+    tag_target: "目标",
+    tag_lower: "档位不足",
+    no_passives: "（无词条）",
+    rarity: ["（白）", "（蓝）", "（紫）", "（金）"],
+    section_preview: "继承预览",
+    source_label: "来源（继承后消失）",
+    target_label: "目标",
+    current: "当前词条",
+    after: "继承后",
+    pick_source_first: "先在左侧选择来源武器",
+    pick_target: "再在左侧选择接收词条的目标武器",
+    replaced: "目标原有的词条会全部被替换",
+    inherit_button: "继承词条",
+    confirm_again: "再次点击确认继承",
+    pending: "处理中……",
+    rule: "来源武器的全部词条整把覆盖到目标武器上，来源武器随后消失。来源的稀有度档位不能低于目标（白 / 蓝 / 紫红金三档，同档互换、高档可给低档），可以跨武器类型。",
+    prompt: "点击武器选择来源与目标，再点一次可取消；Esc 返回",
+    pad_prompt: "方向键 移动　A 选择　B 退一步 / 返回",
+};
+
+static EN: Texts = Texts {
+    window: "Inherit Passives##nr_inherit",
+    title: "Inherit Passives",
+    waiting: "Reading weapons...",
+    section_weapons: "Carried weapons",
+    right_hand: "Right",
+    left_hand: "Left",
+    empty: "(empty)",
+    step_source: "Step 1: pick the source weapon (it will be consumed)",
+    step_target: "Step 2: pick the target weapon that receives the passives",
+    step_confirm: "Step 3: confirm on the right",
+    tag_source: "Source",
+    tag_target: "Target",
+    tag_lower: "Tier too high",
+    no_passives: "(no passives)",
+    rarity: ["(White)", "(Blue)", "(Purple)", "(Gold)"],
+    section_preview: "Preview",
+    source_label: "Source (consumed)",
+    target_label: "Target",
+    current: "Current passives",
+    after: "After inheriting",
+    pick_source_first: "Pick the source weapon on the left first",
+    pick_target: "Then pick the target weapon on the left",
+    replaced: "All passives on the target will be replaced",
+    inherit_button: "Inherit passives",
+    confirm_again: "Click again to confirm",
+    pending: "Working...",
+    rule: "All passives of the source overwrite the target's, and the source is consumed. The source's rarity tier must not be lower than the target's (white / blue / purple-red-gold; same tier or higher to lower). Weapon types may differ.",
+    prompt: "Click weapons to pick the source and target, click again to undo; Esc to go back",
+    pad_prompt: "D-pad move　A select　B undo / back",
+};

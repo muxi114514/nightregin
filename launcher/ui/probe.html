@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN" style="background:#000">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>组件探测</title>
+    <script>
+      // 探测钩子：先于组件注册，事件分发完再读 defaultPrevented，记进 __prevented
+      window.__prevented = [];
+      window.__activated = [];
+      window.__back = 0;
+      const record = (e) => setTimeout(() => window.__prevented.push({
+        type: e.type, key: e.key ?? null, button: e.button ?? null, ctrl: !!e.ctrlKey, prevented: e.defaultPrevented,
+      }), 0);
+      for (const t of ['keydown', 'contextmenu', 'mouseup']) addEventListener(t, record, true);
+      addEventListener('wheel', record, { capture: true, passive: true });
+    </script>
+  </head>
+  <body style="margin:0;background:#000">
+    <!-- 组件测试页（只在 NRGA_PROBE=1 的构建里打包）：三项菜单、两个对话框按钮（普通 / 危险操作）、一个输入框 -->
+    <div id="stage">
+      <section class="screen on" id="probe">
+        <button class="opt" id="probe-dialog" type="button" tabindex="-1" style="position:absolute;left:60px;top:600px"><span>打开对话框</span></button>
+        <button class="opt" id="probe-danger" type="button" tabindex="-1" style="position:absolute;left:300px;top:600px"><span>危险操作</span></button>
+        <input id="probe-input" style="position:absolute;left:60px;top:660px;width:260px;font:16px var(--serif);color:var(--hi);background:#111;border:1px solid var(--mute);padding:4px 8px" />
+      </section>
+    </div>
+    <script type="module">
+      import '/src/styles/base.css';
+      import '/src/styles/dialog.css';
+      import { getApi } from '/src/api/index.ts';
+      import { installKeys, pushKeyHandler } from '/src/input/keys.ts';
+      import { installPointer } from '/src/input/pointer.ts';
+      import { confirm } from '/src/ui/dialog.ts';
+      import { Menu } from '/src/ui/menu.ts';
+      import { RowList } from '/src/ui/rows.ts';
+      import '/src/styles/sys.css';
+      import { installScale } from '/src/ui/scale.ts';
+
+      installKeys();
+      installPointer();
+      installScale(document.getElementById('stage'));
+      const menu = new Menu({
+        items: [{ label: '第一项' }, { label: '第二项' }, { label: '第三项' }],
+        onActivate: (i) => window.__activated.push(i + 1),
+      });
+      document.getElementById('probe').prepend(menu.el);
+      // 页面这一层：Esc 计一次返回，其余交给菜单
+      pushKeyHandler((k) => {
+        if (k === 'Escape') {
+          window.__back++;
+          return true;
+        }
+        return menu.handleKey(k);
+      });
+      document.getElementById('probe-dialog').addEventListener('click', async () => {
+        window.__dialogResult = await confirm({ text: '探测用对话框', ok: '确定', cancel: '取消', destructive: false });
+      });
+      document.getElementById('probe-danger').addEventListener('click', async () => {
+        window.__dialogResult = await confirm({ text: '探测用危险操作', ok: '确定', cancel: '取消', destructive: true });
+      });
+      // ?rows=1：次级页的行组件
+      if (new URLSearchParams(location.search).has('rows')) {
+        const s = window.__rowsState = { n: 50, off: 30, t: true, p: 0, runs: 0, raw: 0, failed: 0, fSet: 0 };
+        const desc = () => ({ paragraphs: ['说明'] });
+        const rows = [
+          { id: 't', label: '开关', type: 'toggle', get: () => ({ ok: true, value: s.t }), set: (v) => { s.t = v; }, desc },
+          { id: 'n', label: '数值', type: 'number', min: 10, max: 300, step: 10, unit: '%', get: () => ({ ok: true, value: s.n }), set: (v) => { s.n = v; }, desc },
+          { id: 'off', label: '变暗', type: 'number', min: 10, max: 300, step: 10, unit: '%', off: () => true, get: () => ({ ok: true, value: s.off }), set: (v) => { s.off = v; }, desc },
+          { id: 'p', label: '档位', type: 'pick', options: ['甲', '乙'], get: () => ({ ok: true, value: s.p }), set: (i) => { s.p = i; }, desc },
+          { id: 'a', label: '动作', type: 'action', run: () => { s.runs++; }, desc },
+          { type: 'separator', id: 'sep' },
+          { id: 'raw', label: '连按', type: 'action', rawClicks: true, run: () => { s.raw++; }, desc },
+          { id: 'f', label: '失败', type: 'number', min: 10, max: 300, step: 10, unit: '%', get: () => ({ ok: false, message: '坏了' }), set: () => { s.fSet++; }, desc },
+          ...Array.from({ length: 12 }, (_, i) => ({ id: `a${i}`, label: `行 ${i}`, type: 'action', run: () => {}, desc })),
+        ];
+        const list = new RowList({ onSelect: () => {}, onFailed: () => { s.failed++; } });
+        document.getElementById('probe').append(list.el, list.bar);
+        list.setRows(rows);
+        window.__rowsRefresh = () => list.refresh();
+        pushKeyHandler((k) => list.handleKey(k));
+      }
+
+      const api = getApi();
+      api.getHome()
+        .then(() => api.uiReady())
+        .then(() => { window.__ready = true; })
+        .catch((e) => console.error('探测页初始化失败', e));
+    </script>
+  </body>
+</html>

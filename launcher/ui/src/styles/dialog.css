@@ -1,0 +1,17 @@
+/* 对话框：全宽 Dialog 横带，遮罩不低于 .72（照草图 v4 移植） */
+.dlg{position:absolute;inset:0;z-index:35;display:flex;align-items:center;background:var(--mask);opacity:0;pointer-events:none;transition:opacity .2s}
+.dlg.on{opacity:1;pointer-events:auto}
+/* 启动失败框贴在上方，不挡住下面失败的那一步 */
+.dlg.top{align-items:flex-start;padding-top:56px}
+.dbox{width:100%;padding:16px 80px 12px;text-align:center;background:linear-gradient(90deg,transparent,var(--band) 7%,var(--band) 93%,transparent) padding-box;transform:translateY(6px);transition:transform .2s}
+.dlg.on .dbox{transform:none}
+.dico{display:block;width:40px;height:40px;margin:0 auto 6px;background:url(/assets/chk_fail.png) center/100% 100%}
+.msg{font:500 20px/1.6 var(--serif);color:var(--hi);letter-spacing:.06em}
+.sub{margin-top:4px;font:15px/1.7 var(--serif);color:var(--tx)}
+/* 数据小字：路径只在「\」后折行 */
+.dbox .dt{margin-top:2px;font:14px/1.75 var(--sans);color:var(--dim);overflow-wrap:break-word}
+.sub:empty,.dbox .dt:empty{display:none}
+.opts{display:flex;justify-content:center;gap:44px;margin-top:16px}
+.dlg .keys{right:48px}
+/* 启动失败：只藏标志 */
+.mfail .logo{visibility:hidden}

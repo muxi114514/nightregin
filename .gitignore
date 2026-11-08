@@ -1,0 +1,17 @@
+# 构建产物
+/target/
+/launcher/dist/
+/launcher/ui/dist/
+/launcher/app/gen/schemas/
+
+# 依赖与缓存
+node_modules/
+__pycache__/
+*.pyc
+
+# 测试输出
+/launcher/ui/probes/out/
+
+# 本地开发过程文件
+/.superpowers/
+/docs/superpowers/

@@ -1,0 +1,8 @@
+[package]
+name = "nr_stat_alloc_shared"
+version = "1.0.0"
+edition = "2024"
+description = "NRStatAlloc DLL 与 regulation 补丁工具共用的组件 ID 规则、PARAM 解析与字段偏移"
+publish = false
+
+[dependencies]

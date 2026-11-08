@@ -1,0 +1,132 @@
+# NRStatAlloc 配置（放在 nr_stat_alloc.dll 同目录）
+log_level = "info"
+# "scheme" 按 schemes.toml 逐级分配；"test" 使用下方 [test] 的固定差值（调试用）
+mode = "scheme"
+# 组件效果是否同步给联机队友（正常应为 true）
+sync_network = true
+# 组件续期间隔（毫秒，500~3000）。组件时长 6 秒，停止续期后队友端最多 6 秒内恢复
+lease_refresh_ms = 2000
+reconcile_interval_ms = 500
+
+[rules]
+# 单项属性的下限与上限
+min = 1
+cap = 70
+
+[hotkeys]
+# 虚拟键码：0x75 = F6 属性分配面板（遗物装配界面打开时有效），0x76 = F7 重载方案，
+# 0x77 = F8 校准，0x78 = F9 转储，0x79 = F10 启用/停用
+panel = 0x75
+reload = 0x76
+calibrate = 0x77
+dump = 0x78
+toggle = 0x79
+
+[ui]
+# 遗物装配界面上的"属性分配"按钮与面板
+enabled = true
+# 界面缩放（已按分辨率自适应，这里再乘一个系数，0.5~3.0）
+scale = 1.0
+# 中文字体文件路径，留空自动使用系统的华文中宋 / 宋体 / 微软雅黑
+font = ""
+# 界面语言："auto" 跟随 Steam 中本游戏的语言，"zh" 中文，"en" 英文
+language = "auto"
+# 手柄开关面板的按键（遗物装配界面打开时有效），可写 L3、R3、Back、Start、LB+RB 等组合
+pad_toggle = "L3"
+# 操作面板时播放游戏菜单的光标 / 确定 / 返回音效
+sound = true
+
+[weapon_passive]
+# 锻造石强化武器时，词条同步升到同类的上位档（数值全部取自原版参数表，不改 regulation）
+enabled = true
+# 每次强化把武器实例内容写进日志（排查问题用）
+dump = false
+
+[starting_weapons]
+# 出征时给初始武器（主手、副手各）随机 1 条效力 1 的通用词条（按武器类别选表，圆桌里保持原样）
+# 各角色的初始武器在属性分配面板中栏选择，随方案按器皿保存
+random_passive = true
+
+[boss_loot]
+# 首领掉落球第三个选项（局内词条 / 徘徊赐福）里锻造石【３】出现的概率（%，从局内词条里扣，0 为不加，最高 90）
+smithing_stone_percent = 10
+
+[legendary_upgrade]
+# 锻造台可用锻造石【３】把紫色武器强化成金色（原版锁在紫色）。只改本机锻造台的两处判断，不改 regulation；
+# 与 MMV 整合包的 RestoredLegendaryStones 功能相同，同时加载也不会重复强化
+enabled = true
+
+[tiered_buffs]
+# 三档锻体里靠 DLL 实现的词条（只有带三档锻体的整合包会掉落这些锻体，其余整合包开着也没有影响）
+enabled = true
+# 「持有的卢恩随机变化」：倍数在 min ~ max 之间按对数均匀抽取（0.1 ~ 10 时变多变少各一半），结果封顶 cap
+rune_gamble_min = 0.1
+rune_gamble_max = 10.0
+rune_gamble_cap = 1000000
+# 「消耗卢恩时，有机会返还」的概率（0 ~ 1）
+rune_refund_chance = 0.4
+# 「受到致命伤害时，消耗卢恩免于死亡」每次消耗的卢恩
+rune_shield_cost = 20000
+# 「在装备界面快速打开锻造台」的热键（虚拟键码，0 为关闭）：强化界面默认 F3，词条继承默认 F4
+quick_forge_key = 0x72
+quick_inherit_key = 0x73
+# 三选一（首领球）界面的「刷新选项」按钮：每次的卢恩价格，依次为第 1、2、3… 次，数组长度就是每个球能刷新的次数，[] 为关闭
+orb_refresh_costs = [0, 10000, 50000]
+
+[relic_reroll]
+# 遗物装配界面的「重铸遗物」按钮：在遗物这一栏原版可能出现的词条里重抽选中的词条，花暗痕或为王之证
+enabled = true
+# 筛选加价指数：倍率 = (全部候选权重 / 勾选后候选权重)^指数。1 为筛选只省事不省钱，0 为筛选不加价，最高 2
+price_exponent = 0.5
+# 本模组新增的追踪者追斩 / 地火词条随原版模板词条一起出现（与模板平分权重）
+include_custom = true
+# 每重铸一条的基础价，0 为读游戏商店里情景原石的价格（普通遗物 600 暗痕 / 5 为王之证，深夜遗物 1800 / 10）
+murk_standard = 0
+murk_deep = 0
+sigils_standard = 0
+sigils_deep = 0
+
+[passive_inherit]
+# 锻造台的「继承词条」：把一把武器的全部词条整把覆盖到另一把上，前者消失（来源稀有度档位不能低于目标：白 / 蓝 / 紫红金）
+enabled = true
+
+[midnight]
+# 午夜模式：出击菜单停在「深夜」栏时可切换（只有房主能切），胜负计入午夜积分与等级
+enabled = true
+# 切换午夜的热键（虚拟键码，默认 F11 = 0x7A；0 = 只用按钮）
+toggle_key = 0x7A
+# 胜利 / 失败加减的积分；打败永夜王按倍率加成
+win_points = 100
+everdark_multiplier = 1.5
+loss_points = 50
+# 等级曲线：前 early_levels 级每级 early_cost 分，之后每级比上一级多 cost_step 分（默认满 100 级共 57600 分）
+early_levels = 5
+early_cost = 120
+cost_step = 10
+# 联机时重写自己午夜状态的间隔（秒；状态变化时立即写）
+resend_seconds = 5
+
+[diag]
+# 音效诊断：把游戏播放的音效事件写进日志（找菜单音效用），平时保持 false
+sound_trace = false
+# 词条继承面板测试热键（虚拟键码，0 为关闭，如 0x74 = F5）：出征中按下时不用去锻造台直接打开面板
+inherit_panel_key = 0
+# 强制午夜诅咒的编号（实机逐条验证用，1~16，0 为随机）
+midnight_curse = 0
+
+[test]
+# mode = "test" 时挂到本地角色上的属性差值（范围 ±127）
+vigor = 10
+mind = 0
+endurance = 0
+strength = 10
+dexterity = 0
+intelligence = 0
+faith = 0
+arcane = 0
+
+[offsets]
+# 自动发现失败时手动填写（十六进制），一般留空
+# player_game_data = 0x5A0
+# stats = 0x34
+# level = 0x68

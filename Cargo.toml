@@ -1,0 +1,53 @@
+[package]
+name = "nr_stat_alloc"
+version = "1.9.4"
+edition = "2024"
+description = "Elden Ring Nightreign per-level stat allocation (me3 native)"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+# tiered-diag：诊断版，出击中记录主角身上指定效果的出现 / 消失、关键时刻的主角内存差异（src/tiered_effects/watch.rs）
+# 与硬件断点命中的代码（src/game/hw_breakpoint.rs），正式版不带
+[features]
+tiered-diag = ["windows-sys/Win32_System_Kernel", "windows-sys/Win32_System_Diagnostics_ToolHelp"]
+
+# shared：DLL 与补丁工具共用的组件 ID / PARAM 解析；patcher：整合包用的 regulation 补丁工具；
+# rebalance / relics：MMV 空城整合包的首领强度重平衡与自定义遗物词条（用 patcher 的容器读写）
+# launcher：整合包启动器，自成 workspace（launcher\Cargo.toml），不随 DLL 构建
+[workspace]
+members = ["shared", "patcher", "rebalance", "relics"]
+exclude = ["launcher"]
+
+[dependencies]
+nr_stat_alloc_shared = { path = "shared" }
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+# 写回 schemes.toml 时保留注释与格式
+toml_edit = "0.22"
+# 解码 skin\ 下的原生界面素材
+png = "0.17"
+# DX12 叠加层（内置 ImGui），C++ 部分由 w64devkit 编译，见 tools/build_env.ps1
+hudhook = { version = "0.9.3", default-features = false, features = ["dx12"] }
+
+# 0.52 自带 GNU 导入库，不依赖外部 dlltool / as
+[dependencies.windows-sys]
+version = "0.52"
+features = [
+    "Win32_Foundation",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Memory",
+    "Win32_System_Threading",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+]
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+# 调试信息（主要来自 ImGui 的 C++ 部分）会让 DLL 膨胀到约 18 MB；panic 位置由日志里的 panic 钩子记录，不依赖它
+strip = "debuginfo"

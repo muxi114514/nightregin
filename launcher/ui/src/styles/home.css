@@ -1,0 +1,13 @@
+/* 首页：标题画面（照草图 v4 移植）。菜单、横带、按键提示的通用样式在 base.css */
+.logo{position:absolute;left:350px;top:22px;width:500px;height:311px;animation:rise 1.6s ease-out both}
+/* 有横带时菜单行距收一点，给横带让位 */
+#home.iss .tmenu{--tm:36px}
+/* 横带文案长时在两侧留白内折行 */
+#home .issue p{padding:0 96px}
+/* 底部状态行：版本、深夜层数、就绪三段，衬线、不分颜色；计划 1 各段不响应点击 */
+/* 能跳转的段是按钮，其余地方不挡点击 */
+.status button{pointer-events:auto;font:inherit;letter-spacing:inherit;color:inherit;transition:color .15s}
+.status button:hover{color:var(--hi)}
+.status{position:absolute;left:0;right:0;bottom:16px;display:flex;justify-content:center;gap:48px;font:15px/24px var(--serif);color:var(--tx2);letter-spacing:.04em;animation:fadein 1s 1s both;pointer-events:none}
+/* 可点的「确定」（Enter）：执行当前选中的项；放右下角，不压状态行 */
+.hkeys{right:48px}

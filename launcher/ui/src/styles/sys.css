@@ -1,0 +1,88 @@
+/* 次级页：法环系统菜单（照草图 v4 移植） */
+:root{--row:40px}
+.tabs{position:absolute;left:280px;top:28px;width:640px;height:92px;transition:opacity .3s}
+.tabs>img{position:absolute;inset:0;width:100%;height:100%;opacity:.55}
+.tabview{position:absolute;left:92px;right:92px;top:0;bottom:0}
+.tabrow{position:absolute;inset:0;display:flex;transition:transform .2s}
+.tabs.many .tabview{overflow:hidden}
+.tabs.many .tab{flex:0 0 64px}
+.tab{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.tab .ic{position:relative;height:40px;opacity:.64;filter:saturate(.4);transition:opacity .2s,filter .2s}
+.tab:hover .ic{opacity:.85}
+.tab.on .ic{opacity:1;filter:none}
+.tab .tl{position:relative;font:14px/18px var(--serif);color:var(--tx2);letter-spacing:.08em;white-space:nowrap}
+.tab.on .tl{color:var(--hi)}
+.tab .tc{position:absolute;left:50%;top:50%;width:152px;height:132px;margin:-66px 0 0 -76px;opacity:0;transition:opacity .2s;pointer-events:none}
+.tab.on .tc{opacity:1}
+.tnav{position:absolute;top:61px;display:flex;align-items:center;gap:6px;transition:opacity .3s}
+.tnav .k{width:26px;height:26px}
+.tnav .a{width:11px;height:15px;opacity:.7}
+.tnav.r .a{transform:scaleX(-1)}
+.tnav.l{left:220px}.tnav.r{left:932px}
+/* 进了永夜王选择画面：标签横幅退后，Q / E 不可用 */
+#sys.lords .tabs,#sys.lords .tnav{opacity:.4;pointer-events:none}
+.head{position:absolute;left:60px;top:152px;width:540px}
+.head h1{font:500 18px/28px var(--serif);color:var(--hi);letter-spacing:.06em;padding-left:22px}
+.head i{display:block;height:14px;margin-top:2px;background:url(/assets/line_l.png) left center/100% 100% no-repeat;opacity:.6}
+.cnt{float:right;margin-right:10px;font:15px/28px var(--serif);color:var(--dim);letter-spacing:.04em}
+.olist{position:absolute;left:52px;top:204px;width:568px;max-height:440px;overflow-y:auto;list-style:none;scrollbar-width:none}
+.olist::-webkit-scrollbar{display:none}
+.olist.up{-webkit-mask-image:linear-gradient(transparent,var(--bg) 36px);mask-image:linear-gradient(transparent,var(--bg) 36px)}
+.olist.dn{-webkit-mask-image:linear-gradient(var(--bg) calc(100% - 36px),transparent);mask-image:linear-gradient(var(--bg) calc(100% - 36px),transparent)}
+.olist.up.dn{-webkit-mask-image:linear-gradient(transparent,var(--bg) 36px,var(--bg) calc(100% - 36px),transparent);mask-image:linear-gradient(transparent,var(--bg) 36px,var(--bg) calc(100% - 36px),transparent)}
+.sbar{position:absolute;left:624px;top:204px;width:14px;height:440px;background:url(/assets/scroll_waku.png) center/100% 100%;opacity:.75}
+.sbar i{position:absolute;left:4.5px;top:0;width:5px;background:url(/assets/scroll_bar.png) center/100% 100%;opacity:.55;filter:saturate(.5)}
+.row{position:relative;height:var(--row);display:flex;align-items:center;gap:12px;padding:0 26px;cursor:pointer}
+.row::before,.row::after{content:"";position:absolute;inset:0;border:solid transparent;border-width:0 24px;opacity:0;transition:opacity .14s;pointer-events:none}
+.row::before{border-image:url(/assets/cur_ent.png) 0 60 fill/0 24px}
+.row::after{border-image:url(/assets/cur_waku.png) 0 60 fill/0 24px}
+.row.sel::before,.row.sel::after{opacity:1}
+.modal .row.sel::before,.modal .row.sel::after{opacity:0}
+.row>*{position:relative;z-index:1}
+.lb{flex:1;font:500 17px/1.2 var(--serif);color:var(--tx);letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row.sel .lb{color:var(--hi)}
+.row.off .lb,.row.off .val{color:var(--mute)!important}
+.row.off .ar img{opacity:.12!important}
+.row.hd{height:18px;cursor:default}
+.row.hd i{position:absolute;left:26px;right:26px;top:2px;height:14px;background:url(/assets/line_m.png) center/100% 100% no-repeat;opacity:.45}
+.val{display:flex;align-items:center;font:500 16px/1 var(--serif);color:var(--tx)}
+.row.sel .val{color:var(--hi)}
+.val .v{min-width:96px;text-align:center}
+.readonly .val{margin-right:24px}
+.val .s{min-width:0;margin-left:12px;font:14px var(--serif);color:var(--dim)}
+.ar{width:24px;height:30px;display:grid;place-items:center;cursor:pointer}
+.ar img{width:9px;height:12px;opacity:.3}
+.ar.r img{transform:scaleX(-1)}
+.row.sel .ar img{opacity:.85}
+.row.sel .ar.end img{opacity:.14}
+.pth{max-width:300px;font:14px var(--sans);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#skeys{right:48px}
+
+/* 永夜王：法环物品栏式头像格 */
+.lgrid{position:absolute;left:89px;top:300px;display:grid;grid-template-columns:repeat(4,116px);gap:10px;animation:fadein .3s both}
+.lord{position:relative;width:116px;height:116px;display:grid;place-items:center}
+.lord .fr{position:absolute;inset:0;width:100%;height:100%;transition:opacity .25s}
+.lord .fr.l,.lord.on .fr.n{opacity:0}
+.lord.on .fr.l{opacity:1}
+.lord.on.f .fr.l{opacity:.5}
+.lord .pt{position:absolute;left:50%;top:50%;width:136px;height:136px;margin:-68px 0 0 -68px;clip-path:inset(20px);filter:grayscale(.7) brightness(.45);transition:filter .25s}
+.lord.on .pt{filter:none}
+.lord .cur{position:absolute;left:-13px;top:-13px;width:142px;height:142px;z-index:2;opacity:0;filter:saturate(.8);transition:opacity .14s;pointer-events:none}
+.lord.f .cur{opacity:.85}
+.modal .lord .cur{opacity:0}
+
+/* 右侧说明面板 */
+.desc{position:absolute;left:640px;top:142px;width:516px;border:44px solid transparent;border-image:url(/assets/unchku.png) 110 fill/44px;padding:0 8px 4px}
+.dh{display:flex;align-items:center;gap:20px}
+.pic{flex:none;width:104px;height:104px;display:grid;place-items:center}
+.pic img{max-width:100%;max-height:100%}
+.desc h2{font:500 20px/1.4 var(--serif);color:var(--hi);letter-spacing:.08em}
+.meta{margin-top:4px;font:14px var(--serif);color:var(--gold)}
+.sep{display:block;height:14px;margin:12px -6px 10px;background:url(/assets/line_c.png) center/100% 100% no-repeat;opacity:.7}
+.desc p{font:15px/1.85 var(--serif);color:var(--tx)}
+.desc p+p{margin-top:4px}
+.desc .lore{margin-top:8px;color:var(--lore)}
+.strip{display:flex;gap:8px;margin-top:12px}
+.strip img{width:40px;height:40px;filter:grayscale(.7) brightness(.45)}
+.strip img.on{filter:none}
+.desc .dt{margin-top:10px;font:14px/1.75 var(--sans);color:var(--dim);overflow-wrap:break-word}

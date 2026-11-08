@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>黄金时代启动器</title>
+<style>
+/* 随包带的思源宋体（Noto Serif SC）子集，只含界面用到的字；玩家机器没装衬线字体也不会回落到宋体 */
+@font-face{font-family:"GA Serif";src:url(assets/serif_sub.woff) format("woff");font-weight:200 900;font-display:block}
+/* 颜色、字体等令牌集中在这里 */
+:root{
+  --hi:#efe6cf;--tx:#bcb197;--tx2:#a39880;--dim:#918670;--mute:#6f6756;--gold:#c9a679;--lore:#9d927a;--err:#e08a52;
+  --wbtn:#5a5446;--glow:rgba(201,166,121,.3);
+  --bg:#000;--mask:rgba(0,0,0,.78);--band:rgba(0,0,0,.92);
+  --serif:"GA Serif","Noto Serif SC","Source Han Serif SC","思源宋体",serif;
+  --sans:"Microsoft YaHei UI","Microsoft YaHei",sans-serif;
+  --row:40px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);overflow:hidden}
+body{color:var(--tx);font:15px/1.6 var(--serif);user-select:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+img{display:block}
+[hidden]{display:none!important}
+/* 设计稿 1200×720，整体按窗口等比缩放 */
+#stage{position:absolute;left:0;top:0;width:1200px;height:720px;transform-origin:0 0;overflow:hidden;background:var(--bg)}
+/* 余烬压到画面下半部，右上角额外压暗，避免贴着窗口按钮像漏光 */
+.bg{position:absolute;inset:0;overflow:hidden}
+.bg img{position:absolute;left:-160px;top:290px;width:1360px;height:765px;opacity:.62;-webkit-mask-image:linear-gradient(transparent,var(--bg) 18%);mask-image:linear-gradient(transparent,var(--bg) 18%)}
+.bg::after{content:"";position:absolute;inset:0;background:radial-gradient(560px 360px at 100% 0,var(--bg) 30%,transparent 80%)}
+.dim{position:absolute;inset:0;background:var(--bg);opacity:0;transition:opacity .45s;pointer-events:none}
+#stage:not([data-layer=home]) .dim{opacity:.6}
+/* 拖动区和窗口按钮在遮罩之上，弹窗时也能拖动、最小化、关闭 */
+.drag{position:absolute;left:0;top:0;right:96px;height:26px;z-index:44}
+.win{position:absolute;top:2px;right:8px;display:flex;z-index:45}
+.win button{position:relative;width:40px;height:26px;color:var(--wbtn)}
+.win button::before{content:"";position:absolute;inset:-2px 4px;background:radial-gradient(closest-side,var(--glow),transparent);opacity:0;transition:opacity .2s}
+.win button:hover::before{opacity:1}
+.win i{position:absolute;left:14px;right:14px;top:12px;height:1.5px;background:currentColor}
+.win .x i{transform:rotate(45deg)}.win .x i+i{transform:rotate(-45deg)}
+.screen{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .4s}
+.screen.on{opacity:1;pointer-events:auto}
+/* 弹窗时下层整屏压到 .14，横带里不再透出下层文字；启动失败时只藏标志，失败那一步仍要看得见 */
+.modal:not(.mfail) .screen.on{opacity:.14;transition:opacity .2s}
+.mfail .logo{visibility:hidden}
+/* 只暂停循环动画；一次性入场动画不受影响，避免隐藏时停在透明帧 */
+.screen:not(.on) .loop,.paused .loop,.screen:not(.on) .row.busy>*,.paused .row.busy>*{animation-play-state:paused}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+@keyframes fadein{from{opacity:0}}
+@keyframes breathe{50%{opacity:.6}}
+/* 进行中的文字：很淡的呼吸，不用转圈 */
+.brz{animation:breathe 2.6s ease-in-out infinite}
+/* 法环 PC 按键提示：按键贴图 + 文字，横排在底部；能执行的做成按钮 */
+.keys{position:absolute;bottom:16px;display:flex;gap:24px;font:14px/26px var(--sans);color:var(--dim)}
+.keys span,.keys button{display:flex;align-items:center;gap:8px}
+.keys button{transition:color .15s}
+.keys button:hover{color:var(--hi)}
+.keys img{height:26px}
+.modal #lkeys,.modal #skeys,.modal #ckeys{visibility:hidden}
+
+/* ── 首页：标题画面 ── */
+.logo{position:absolute;left:350px;top:22px;width:500px;height:311px;animation:rise 1.6s ease-out both}
+.tmenu{--tm:38px;position:absolute;left:420px;top:350px;width:360px;transition:opacity .4s}
+#home.iss .tmenu{--tm:36px}
+.tcur{position:absolute;left:-60px;top:-12px;width:480px;height:62px;pointer-events:none;transition:transform .16s ease-out;animation:fadein .9s .55s ease-out both}
+.tcur img{width:100%;height:100%;animation:breathe 3.2s ease-in-out infinite}
+.tcur.off,.modal .tcur{visibility:hidden}
+.tmenu button{position:relative;display:block;width:100%;height:var(--tm);font:500 20px/var(--tm) var(--serif);letter-spacing:.14em;text-indent:.14em;color:var(--tx2);text-shadow:0 1px 3px var(--bg);animation:rise .9s ease-out both}
+.tmenu button.sel{color:var(--hi)}
+.tmenu button.off{color:var(--mute)}
+.tmenu span{position:relative}
+.bang{position:absolute;right:-14px;top:1px;width:10px;height:18px}
+/* 底部状态行：版本、深夜层数、就绪三段，衬线、不分颜色，各段可点 */
+.status{position:absolute;left:0;right:0;bottom:16px;display:flex;justify-content:center;gap:48px;font:15px/24px var(--serif);color:var(--tx2);animation:fadein 1s 1s both;transition:opacity .4s}
+.status button{letter-spacing:.04em;transition:color .15s}
+.status button:hover{color:var(--hi)}
+/* 法环提示横带：MENU_FL_Dialog 横贯全宽，上下两道细边不拉伸 */
+.band{border:solid transparent;border-width:24px 0;border-image:url(assets/dialog.png) 24 0 fill/24px 0}
+.issue{position:absolute;left:0;right:0;top:568px;border-width:22px 0;border-image-width:22px 0;text-align:center;background:linear-gradient(90deg,transparent,var(--band) 8%,var(--band) 92%,transparent) padding-box;animation:fadein .6s .8s both;transition:opacity .4s}
+.issue p{display:flex;align-items:center;justify-content:center;gap:12px;font:500 17px/24px var(--serif);color:var(--hi);letter-spacing:.06em}
+.issue p img{width:11px;height:20px}
+.issue p span{font:14px var(--serif);color:var(--dim);letter-spacing:0}
+.issue .opt{margin-top:2px;height:34px;line-height:34px}
+/* 对话框和横带里的选项：Cursor_Wide 高亮 */
+.opt{position:relative;min-width:120px;height:38px;padding:0 20px;font:500 17px/38px var(--serif);letter-spacing:.1em;color:var(--tx)}
+.opt::before{content:"";position:absolute;left:-18px;right:-18px;top:0;bottom:0;background:url(assets/cur_wide.png) center/100% 100%;opacity:0;transition:opacity .14s}
+.opt.sel{color:var(--hi)}.opt.sel::before{opacity:1}
+.modal #issue .opt::before{opacity:0}
+.opt span{position:relative}
+/* 开始游戏：标题菜单淡出，原位置换成四步检查 */
+#home[data-mode=launch] .tmenu,#home[data-mode=launch] .status,#home[data-mode=launch] .issue{opacity:0;pointer-events:none}
+.steps{position:absolute;left:392px;top:354px;width:470px;list-style:none;opacity:0;pointer-events:none;transition:opacity .45s .2s}
+#home[data-mode=launch] .steps{opacity:1}
+.step{position:relative;display:flex;align-items:center;gap:14px;height:44px;opacity:.4;transition:opacity .3s}
+/* 进行中的柔光只垫在「八角框 + 步骤名」这一块后面 */
+.step::before{content:"";position:absolute;left:-50px;width:270px;top:-8px;bottom:-8px;background:url(assets/title_cursor.png) center/100% 100%;opacity:0;transition:opacity .3s}
+.step.run::before{opacity:.5}
+/* 失败时步骤列表浮到遮罩之上，失败那一步的图标始终看得见 */
+.steps.fail{z-index:36}
+.modal .step::before{opacity:0!important}
+.step.run,.step.ok,.step.err{opacity:1}
+.step img{position:relative;width:28px;height:28px}
+.step.run img{animation:breathe 1.4s ease-in-out infinite}
+.step .n{position:relative;width:86px;font:500 18px var(--serif);color:var(--hi);letter-spacing:.08em}
+.step .d{position:relative;font:14px var(--sans);color:var(--dim)}
+.step.ok .n{color:var(--tx)}
+.step.run .d{color:var(--tx)}
+.step.err .n,.step.err .d{color:var(--err)}
+.lmsg{position:absolute;left:0;right:0;top:560px;text-align:center;font:500 19px var(--serif);color:var(--hi);letter-spacing:.12em;opacity:0;transition:opacity .5s}
+.lmsg.on{opacity:1}
+#lkeys{left:0;right:0;justify-content:center;opacity:0;transition:opacity .4s}
+#home[data-mode=launch] #lkeys{opacity:1}
+
+/* ── 图鉴：法环物品栏式。标签横幅切分类；左边「显示 / 查找」两行 + 网格（大地图是缩略图列表、机制是单行列表）；右边固定高度的说明面板 ── */
+#codex .head{top:140px}
+#wrows{top:184px;max-height:none;overflow:visible}
+/* 「显示」只有一个取值时隐藏这一行，条目区跟着上提 */
+#codex.one #wrows .row[data-z="0"]{display:none}
+/* 查找：法环式单行输入，平时只读，Enter 或单击后才能输入 */
+.wq{width:260px;font:500 16px/1.2 var(--serif);color:var(--tx);background:none;border:0;outline:0;caret-color:var(--gold);user-select:text;pointer-events:none}
+.wq::placeholder{color:var(--mute)}
+.row.edit .wq{color:var(--hi);pointer-events:auto}
+.row.edit .lb,.row.edit.sel .lb{color:var(--gold)}
+.wbox{position:absolute;left:58px;top:268px;width:562px;height:414px;overflow-y:auto;scrollbar-width:none;list-style:none}
+#codex.one .wbox{top:228px;height:454px}
+.wbox::-webkit-scrollbar{display:none}
+.wbox.dn{-webkit-mask-image:linear-gradient(var(--bg) calc(100% - 36px),transparent);mask-image:linear-gradient(var(--bg) calc(100% - 36px),transparent)}
+/* 物品栏网格：裁掉透明边的格框几乎相接，5 列；可见的几行用淡空格补满；光标是物品栏的 SL_Cursor，略降饱和 */
+.wgrid{display:grid;grid-template-columns:repeat(5,100px);gap:3px;padding:2px 0 2px 21px}
+.wcell{position:relative;width:100px;height:100px;display:grid;place-items:center;background:url(assets/slot.png) center/100% 100%;cursor:pointer}
+.wcell.e{opacity:.38;cursor:default}
+.wcell .i{position:relative;max-width:80px;max-height:80px}
+/* 圆形头像裁成格框内的方形，不露出圆边 */
+.wcell .i.pt{position:absolute;left:50%;top:50%;width:118px;height:118px;max-width:none;max-height:none;margin:-59px 0 0 -59px;clip-path:inset(18px)}
+.wcell .cur{position:absolute;left:-11px;top:-11px;width:122px;height:122px;z-index:2;opacity:0;filter:saturate(.8);transition:opacity .14s;pointer-events:none}
+.wcell.f .cur{opacity:.3}
+.wbox.on .wcell.f .cur{opacity:.85}
+.modal .wcell .cur{opacity:0}
+/* 本版新增：法环自己的新物品标记（金色「!」），放在格框内角 */
+.nw{position:absolute;left:10px;top:9px;z-index:3;height:15px}
+.wl{list-style:none}
+.row .nw{position:static;height:16px;margin-left:4px}
+/* 单行列表 / 缩略图列表：焦点不在条目区时，选中行的高亮压暗 */
+.wbox:not(.on) .row.sel::before,.wbox:not(.on) .row.sel::after{opacity:.3}
+.wbox:not(.on) .row.sel .lb{color:var(--tx)}
+/* 大地图：缩略图列表（行高 64，格框缩略图 + 名称 + 一句说明）；彩色菜单图标压成和浮雕一样的米色 */
+.row.wth{height:64px;gap:16px}
+.wth .tb{flex:none;width:56px;height:56px;display:grid;place-items:center;background:url(assets/slot.png) center/100% 100%}
+.wth .tb img{max-width:44px;max-height:44px}
+.wth .tb img.col{filter:sepia(.9) saturate(.45) brightness(.9)}
+.wth .tx{flex:1;min-width:0}
+.wth .lb{display:block}
+.wth .ln{display:block;margin-top:5px;font:14px var(--serif);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 查找无结果 / 空分类：两行淡字，不做卡片 */
+.wnone{padding-top:118px;text-align:center;font:500 17px/1.8 var(--serif);color:var(--tx2);letter-spacing:.04em}
+.wnone span{display:block;font:14px var(--serif);color:var(--mute);letter-spacing:0}
+.tab.none .ic{opacity:.3}.tab.none .tl{color:var(--mute)}
+/* 说明面板：固定高度；正文溢出时右侧出现 scroll_waku 细滚动条，R 展开「详细说明」 */
+.desc.wk{height:530px;display:flex;flex-direction:column}
+.desc.wk>*{flex:none}
+.pic.rd{width:92px;height:92px}
+.wtag{display:flex;align-items:center;gap:6px;margin-top:3px;font:14px var(--serif);color:var(--dim)}
+.wtag .nw{position:static;height:13px}
+.wbody{flex:1 1 auto!important;min-height:0;overflow-y:auto;scrollbar-width:none;padding-right:12px}
+.wbody::-webkit-scrollbar{display:none}
+.wbody.dn{-webkit-mask-image:linear-gradient(var(--bg) calc(100% - 44px),transparent);mask-image:linear-gradient(var(--bg) calc(100% - 44px),transparent)}
+.wsb{position:absolute;right:-10px;width:10px;background:url(assets/scroll_waku.png) center/100% 100%;opacity:.7}
+.wsb i{position:absolute;left:3px;top:0;width:4px;background:url(assets/scroll_bar.png) center/100% 100%;opacity:.6;filter:saturate(.5)}
+/* 数值：短的两两并排，长的占一整行 */
+.kv{display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:row dense;gap:0 18px;margin-bottom:6px}
+.kv div{display:flex;gap:12px;min-width:0}
+.kv div.w{grid-column:1/-1}
+.kv dt{flex:none;font:14px/25px var(--serif);color:var(--dim)}
+.kv dd{font:15px/25px var(--serif);color:var(--tx)}
+/* 详细说明：收起头图、数值与形态行，正文占满面板 */
+.desc.wk.det .pic,.desc.wk.det .meta,.desc.wk.det .wtag,.desc.wk.det .kv,.desc.wk.det .ever{display:none}
+.desc.wk .lore{white-space:pre-line}
+.wfoot{padding-top:10px}
+.desc .wsrc{font:14px/1.7 var(--serif);color:var(--tx2)}
+.wsrc b{font-weight:500;color:var(--gold);margin-right:10px}
+/* 手写 / 占位文字：暗色斜体 */
+.desc .ph{color:var(--mute);font-style:italic}
+.ever{display:flex;align-items:center;gap:12px;margin-bottom:6px;font:15px/1.6 var(--serif);color:var(--tx)}
+.ever img{width:40px;height:40px}
+
+/* ── 次级页：法环系统菜单 ── */
+.tabs{position:absolute;left:280px;top:28px;width:640px;height:92px;transition:opacity .3s}
+.tabs>img{position:absolute;inset:0;width:100%;height:100%;opacity:.55}
+.tabrow{position:absolute;left:92px;right:92px;top:0;bottom:0;display:flex}
+.tab{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.tab .ic{position:relative;height:40px;opacity:.64;filter:saturate(.4);transition:opacity .2s,filter .2s}
+.tab:hover .ic{opacity:.85}
+.tab.on .ic{opacity:1;filter:none}
+.tab .tl{position:relative;font:14px/18px var(--serif);color:var(--tx2);letter-spacing:.08em;white-space:nowrap}
+.tab.on .tl{color:var(--hi)}
+.tab .nb{position:absolute;right:-11px;top:1px;width:8px;height:14px}
+.tab .tc{position:absolute;left:50%;top:50%;width:152px;height:132px;margin:-66px 0 0 -76px;opacity:0;transition:opacity .2s;pointer-events:none}
+.tab.on .tc{opacity:1}
+.tnav{position:absolute;top:61px;display:flex;align-items:center;gap:6px;transition:opacity .3s}
+.tnav .k{width:26px;height:26px}
+.tnav .a{width:11px;height:15px;opacity:.7}
+.tnav.r .a{transform:scaleX(-1)}
+.tnav.l{left:220px}.tnav.r{left:932px}
+/* 进了永夜王选择画面：标签横幅退后，Q / E 不可用 */
+#sys.lords .tabs,#sys.lords .tnav{opacity:.4;pointer-events:none}
+/* 页名退成次要层级：18px、窄字距，下面一段没有光点的渐隐细线 */
+.head{position:absolute;left:60px;top:152px;width:540px}
+.head h1{font:500 18px/28px var(--serif);color:var(--hi);letter-spacing:.06em;padding-left:22px}
+.head i{display:block;height:14px;margin-top:2px;background:url(assets/line_l.png) left center/100% 100% no-repeat;opacity:.6}
+.cnt{float:right;margin-right:10px;font:15px/28px var(--serif);color:var(--dim);letter-spacing:.04em}
+.olist{position:absolute;left:52px;top:204px;width:568px;max-height:440px;overflow-y:auto;list-style:none;scrollbar-width:none}
+.olist::-webkit-scrollbar{display:none}
+/* 还有内容时，列表上下边缘渐隐 */
+.olist.up{-webkit-mask-image:linear-gradient(transparent,var(--bg) 36px);mask-image:linear-gradient(transparent,var(--bg) 36px)}
+.olist.dn{-webkit-mask-image:linear-gradient(var(--bg) calc(100% - 36px),transparent);mask-image:linear-gradient(var(--bg) calc(100% - 36px),transparent)}
+.olist.up.dn{-webkit-mask-image:linear-gradient(transparent,var(--bg) 36px,var(--bg) calc(100% - 36px),transparent);mask-image:linear-gradient(transparent,var(--bg) 36px,var(--bg) calc(100% - 36px),transparent)}
+/* 滚动条：法环原生 scroll_waku 双线轨道 + scroll_Bar 滑块 */
+.sbar{position:absolute;left:624px;top:204px;width:14px;height:440px;background:url(assets/scroll_waku.png) center/100% 100%;opacity:.75}
+.sbar i{position:absolute;left:4.5px;top:0;width:5px;background:url(assets/scroll_bar.png) center/100% 100%;opacity:.55;filter:saturate(.5)}
+.row{position:relative;height:var(--row);display:flex;align-items:center;gap:12px;padding:0 26px;cursor:pointer}
+/* 选中高亮：法环原生的柔光底 + 两端括号，两端不拉伸 */
+.row::before,.row::after{content:"";position:absolute;inset:0;border:solid transparent;border-width:0 24px;opacity:0;transition:opacity .14s;pointer-events:none}
+.row::before{border-image:url(assets/cur_ent.png) 0 60 fill/0 24px}
+.row::after{border-image:url(assets/cur_waku.png) 0 60 fill/0 24px}
+.row.sel::before,.row.sel::after{opacity:1}
+.modal .row.sel::before,.modal .row.sel::after{opacity:0}
+.row>*{position:relative;z-index:1}
+/* 行内小图标统一放进 Unchku_s 小框，轻重一致 */
+.row .ic{width:30px;height:30px;padding:4px;object-fit:contain;background:url(assets/slot.png) center/100% 100%}
+/* 细长的武器图标（阎魔刀）提亮、少留边，免得只剩一道暗线 */
+.row .ic.hc{padding:1px;filter:brightness(1.8) contrast(1.15)}
+.lb{flex:1;font:500 17px/1.2 var(--serif);color:var(--tx);letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row.sel .lb{color:var(--hi)}
+.lb .kd{margin-left:18px;font:14px var(--serif);color:var(--dim);letter-spacing:.04em}
+/* 不可调的行（强制深夜关闭时的深夜层数）：整行变暗，箭头几乎隐去 */
+.row.off .lb,.row.off .val{color:var(--mute)!important}
+.row.off .ar img{opacity:.12!important}
+/* 进行中的行（检查更新、校验更新包）：文字很淡地呼吸 */
+.row.busy>.lb,.row.busy>.val{animation:breathe 2.6s ease-in-out infinite}
+/* 分组：不写小节名，只用一段两端渐隐的细线 */
+.row.hd{height:18px;cursor:default}
+.row.hd i{position:absolute;left:26px;right:26px;top:2px;height:14px;background:url(assets/line_m.png) center/100% 100% no-repeat;opacity:.45}
+.val{display:flex;align-items:center;font:500 16px/1 var(--serif);color:var(--tx)}
+.row.sel .val{color:var(--hi)}
+.val .v{min-width:96px;text-align:center}
+.ro .val,.busy .val{margin-right:24px}
+.val .s{min-width:0;margin-left:12px;font:14px var(--serif);color:var(--dim)}
+.ar{width:24px;height:30px;display:grid;place-items:center;cursor:pointer}
+.ar img{width:9px;height:12px;opacity:.3}
+.ar.r img{transform:scaleX(-1)}
+.row.sel .ar img{opacity:.85}
+.row.sel .ar.end img{opacity:.14}
+.pth{max-width:300px;font:14px var(--sans);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gauge{position:relative;width:150px;height:14px;background:url(assets/gauge.png) center/100% 100%}
+.gauge i{position:absolute;left:3px;right:3px;top:-3px;height:20px;background:url(assets/gauge_fill.png) center/100% 100%;transform-origin:left;transition:transform .15s linear}
+#skeys,#dkeys,#ckeys{right:48px}
+
+/* ── 永夜王：法环物品栏式头像格，格里不写字；整组在左栏垂直居中，左右不换行 ── */
+.lgrid{position:absolute;left:89px;top:300px;display:grid;grid-template-columns:repeat(4,116px);gap:10px;animation:fadein .3s both}
+.lord{position:relative;width:116px;height:116px;display:grid;place-items:center}
+/* 永夜：暗金框 + 游戏自带的紫色永夜头像；普通：普通格框 + 普通头像压暗去色。不加光晕，和图鉴、说明面板是同一套画 */
+.lord .fr{position:absolute;inset:0;width:100%;height:100%;transition:opacity .25s}
+.lord .fr.l,.lord.on .fr.n{opacity:0}
+.lord.on .fr.l{opacity:1}
+.lord.on.f .fr.l{opacity:.5}
+.lord .pt{position:absolute;left:50%;top:50%;width:136px;height:136px;margin:-68px 0 0 -68px;clip-path:inset(20px);filter:grayscale(.7) brightness(.45);transition:filter .25s}
+.lord.on .pt{filter:none}
+/* 格子光标：和图鉴同一个物品栏 SL_Cursor；光标在永夜格上时暗金框淡一半，免得双框 */
+.lord .cur{position:absolute;left:-13px;top:-13px;width:142px;height:142px;z-index:2;opacity:0;filter:saturate(.8);transition:opacity .14s;pointer-events:none}
+.lord.f .cur{opacity:.85}
+.modal .lord .cur{opacity:0}
+
+/* 右侧说明面板：高度随内容；顶部大图，lore 紧跟正文；整页唯一的光点在分隔线正中 */
+.desc{position:absolute;left:640px;top:142px;width:516px;border:44px solid transparent;border-image:url(assets/unchku.png) 110 fill/44px;padding:0 8px 4px}
+.dh{display:flex;align-items:center;gap:20px}
+.pic{flex:none;width:104px;height:104px;display:grid;place-items:center}
+.pic img{max-width:100%;max-height:100%}
+.pic img[src*="lv_"]{filter:saturate(.7) brightness(.9)}
+.pic.off img{filter:grayscale(.85) brightness(.5)}
+.pic.dim img{filter:brightness(.72) saturate(.8)}
+.pic.box{background:url(assets/unchku_s.png) center/100% 100%}
+.pic.box img{max-width:74px;max-height:74px}
+.pic.wide{width:176px;height:110px}
+.desc h2{font:500 20px/1.4 var(--serif);color:var(--hi);letter-spacing:.08em}
+.meta{margin-top:4px;font:14px var(--serif);color:var(--gold)}
+.sep{display:block;height:14px;margin:12px -6px 10px;background:url(assets/line_c.png) center/100% 100% no-repeat;opacity:.7}
+.desc p{font:15px/1.85 var(--serif);color:var(--tx)}
+.desc p+p{margin-top:4px}
+.desc .lore{margin-top:8px;color:var(--lore)}
+/* 面板里的夜王小像：永夜王亮、普通形态暗 */
+.strip{display:flex;gap:8px;margin-top:12px}
+.strip img{width:40px;height:40px;filter:grayscale(.7) brightness(.45)}
+.strip img.on{filter:none}
+/* 校验结果：复用启动步骤的八角框 */
+.chk{list-style:none;margin-top:10px}
+.chk li{display:flex;align-items:center;gap:10px;font:15px/30px var(--serif);color:var(--tx)}
+.chk img{width:22px;height:22px}
+.chk li.wait{color:var(--mute)}
+.chk li.wait img{opacity:.5}
+.chk li.fail{color:var(--err)}
+/* 数据小字：路径只在「\」后折行 */
+.dt{margin-top:10px;font:14px/1.75 var(--sans)!important;color:var(--dim)!important;overflow-wrap:break-word}
+
+/* ── 对话框：全宽 Dialog 横带，遮罩不低于 .72 ── */
+.dlg{position:absolute;inset:0;z-index:35;display:flex;align-items:center;background:var(--mask);opacity:0;pointer-events:none;transition:opacity .2s}
+.dlg.on{opacity:1;pointer-events:auto}
+.dlg.top{align-items:flex-start;padding-top:56px}
+.dbox{width:100%;padding:16px 80px 12px;text-align:center;background:linear-gradient(90deg,transparent,var(--band) 7%,var(--band) 93%,transparent) padding-box;transform:translateY(6px);transition:transform .2s}
+.dlg.on .dbox{transform:none}
+.dico{width:40px;height:40px;margin:0 auto 6px}
+.msg{font:500 20px/1.6 var(--serif);color:var(--hi);letter-spacing:.06em}
+.sub{margin-top:4px;font:15px/1.7 var(--serif);color:var(--tx)}
+.dbox .dt{margin-top:2px}
+.sub:empty,.dbox .dt:empty{display:none}
+.opts{display:flex;justify-content:center;gap:44px;margin-top:16px}
+#veil{position:absolute;inset:0;z-index:50;display:grid;place-items:center;background:var(--bg);opacity:0;pointer-events:none;transition:opacity .6s;font:14px var(--sans);color:var(--mute)}
+#veil.on{opacity:1;pointer-events:auto}
+</style>
+</head>
+<body>
+<div id="stage" data-layer="home">
+  <div class="bg"><img id="ember" src="assets/ember.webp" alt=""></div>
+  <div class="dim"></div>
+  <div class="drag" data-tauri-drag-region></div>
+  <div class="win"><button title="最小化" aria-label="最小化" tabindex="-1"><i></i></button><button class="x" id="wclose" title="关闭" aria-label="关闭" tabindex="-1"><i></i><i></i></button></div>
+
+  <section class="screen" id="home" data-mode="menu" aria-label="标题画面">
+    <img class="logo" src="assets/logo.webp" alt="NIGHTREIGN GOLDEN AGE 黑夜君临黄金时代">
+    <nav class="tmenu" id="tmenu" role="menu"><div class="tcur" id="tcur"><img class="loop" src="assets/title_cursor.png" alt=""></div></nav>
+    <ol class="steps" id="steps" aria-live="polite"></ol>
+    <p class="lmsg" id="lmsg"></p>
+    <div class="band issue" id="issue" hidden><p><img src="assets/bang.png" alt=""><b id="iMsg"></b><span id="iSub"></span></p><button class="opt" id="ifix" tabindex="-1"><span id="iAct"></span></button></div>
+    <nav class="status" id="status" aria-label="状态"></nav>
+    <div class="keys" id="lkeys"></div>
+  </section>
+
+  <section class="screen" id="codex" aria-label="图鉴">
+    <div class="tabs"><img src="assets/tab_base.png" alt=""><div class="tabrow" id="wtabrow"></div></div>
+    <button class="tnav l" id="wprev" tabindex="-1"><img class="k" src="assets/key_q.png" alt="Q"><img class="a" src="assets/arrow.png" alt="上一类"></button>
+    <button class="tnav r" id="wnext" tabindex="-1"><img class="a" src="assets/arrow.png" alt="下一类"><img class="k" src="assets/key_e.png" alt="E"></button>
+    <div class="head"><h1 id="wname"></h1><i></i></div>
+    <ul class="olist" id="wrows"></ul>
+    <div class="wbox" id="wbox"></div>
+    <aside class="desc wk" id="wdesc" aria-live="polite"></aside>
+    <div class="keys" id="ckeys"></div>
+  </section>
+
+  <section class="screen" id="sys" aria-label="系统">
+    <div class="tabs"><img src="assets/tab_base.png" alt=""><div class="tabrow" id="tabrow"></div></div>
+    <button class="tnav l" id="tprev" tabindex="-1"><img class="k" src="assets/key_q.png" alt="Q"><img class="a" src="assets/arrow.png" alt="上一页"></button>
+    <button class="tnav r" id="tnext" tabindex="-1"><img class="a" src="assets/arrow.png" alt="下一页"><img class="k" src="assets/key_e.png" alt="E"></button>
+    <div class="head"><h1 id="tname"></h1><i></i></div>
+    <ul class="olist" id="olist"></ul>
+    <div class="lgrid" id="lgrid" role="group" aria-label="永夜王" hidden></div>
+    <div class="sbar" id="sbar" hidden><i></i></div>
+    <aside class="desc" id="desc" aria-live="polite"></aside>
+    <div class="keys" id="skeys"></div>
+  </section>
+
+  <div class="dlg" id="dlg" role="dialog" aria-modal="true"><div class="dbox band"><img class="dico" src="assets/chk_fail.png" alt="失败"><p class="msg"></p><p class="sub"></p><p class="dt"></p><div class="opts"></div></div><div class="keys" id="dkeys"></div></div>
+  <div id="veil"></div>
+</div>
+<script>
+const $=s=>document.querySelector(s), A=n=>`assets/${n}.png`;
+const stage=$('#stage'), home=$('#home'), sys=$('#sys'), list=$('#olist'), lgrid=$('#lgrid'), desc=$('#desc'), dlg=$('#dlg'), veil=$('#veil');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const wbr=s=>esc(s).replace(/\\/g,'\\<wbr>');
+const f=v=>typeof v==='function'?v():v;
+/* 开发模式（?dev=1）：说明面板额外列出配置文件与键名；玩家平时看不到 */
+const DEV=new URLSearchParams(location.search).has('dev');
+/* 按键提示：带 k 的做成按钮，点它等同按下该键（法环 PC 版的按键提示也能点） */
+const key=(img,t,k)=>k?`<button tabindex="-1" data-k="${k}"><img src="${A(img)}" alt="">${t}</button>`:`<span><img src="${A(img)}" alt="">${t}</span>`;
+
+/* 等比缩放：设计稿固定 1200×720，窗口多大就缩放多少 */
+function fit(){const s=Math.min(innerWidth/1200,innerHeight/720);stage.style.transform=`translate(${(innerWidth-1200*s)/2}px,${(innerHeight-720*s)/2}px) scale(${s})`}
+addEventListener('resize',fit);fit();
+
+/* 模拟 Tauri 发布版：屏蔽右键菜单与刷新、打印、查找、缩放等浏览器快捷键，Tab 不遍历焦点；右键等同 Esc。
+   真实实现另在窗口配置设 maximizable:false（拖动区双击不再最大化），并在 Rust 侧关掉 WebView2 的浏览器快捷键与缩放 */
+addEventListener('contextmenu',e=>{e.preventDefault();onKey('Escape')});
+addEventListener('keydown',e=>{const k=e.key.toLowerCase(),c=e.ctrlKey||e.metaKey;
+  if(k==='tab'||k==='f5'||k==='f7'||k==='f12'||(c&&k.length===1&&'rpfgus+-=0'.includes(k))||(e.altKey&&/^arrow(left|right)$/.test(k))){e.preventDefault();e.stopImmediatePropagation()}},true);
+addEventListener('wheel',e=>{if(e.ctrlKey)e.preventDefault()},{passive:false});
+
+/* ── 设置值（草图里只存在内存）。真实实现：深夜四项读写 DepthChange\nighter.json，只改这四个键，
+   bypassOnlineCheck 与其他未知字段原样写回；三项倍率读写 SeamlessCoop\nrsc_settings.ini 的 [SCALING] ── */
+const ALL=[0,1,2,3,4,5,6];
+const S={dn:true,lv:5,ul:true,lords:[...ALL],lcustom:null,hp:120,dmg:60,pos:100,ui:true,wp:true,sw:true,ss:10,pi:true,bk:true,after:0,lowfx:false};
+/* 读盘：superNightLordList 是部分组合时，用它初始化「已挑选」那一档；lcustom 存在启动器自己的设置里，不写进 nighter.json */
+function loadLords(list,saved){S.lords=[...list].sort((a,b)=>a-b);S.lcustom=saved||(S.lords.length%7?[...S.lords]:null)}
+/* 三处存档后缀（草图按本机实际值）：.me3 的 savefile、无缝联机的 save_file_extension、ChanceSetter 的 autoExtension */
+const SX={me3:'co2',nrsc:'co2',cs:'CL_SAVE'}, sxOk=()=>SX.me3===SX.nrsc&&SX.nrsc===SX.cs;
+let VER='1.9.4', ISSUE=null;
+const G={run:false};                    // 游戏是否在运行（真实实现查进程）
+
+/* 页面隐藏、要求减少动效或开了低特效时：停循环动画，余烬换静帧 */
+const ember=$('#ember'), still=matchMedia('(prefers-reduced-motion: reduce)');
+function motion(){const off=document.hidden||still.matches||S.lowfx;document.documentElement.classList.toggle('paused',off);
+  const want=off?'assets/ember_still.png':'assets/ember.webp';if(!ember.src.endsWith(want))ember.src=want}
+document.addEventListener('visibilitychange',motion);still.addEventListener('change',motion);motion();
+
+/* 层切换：home / codex / sys；sub 是次级页里的下一层（永夜王选择）；非当前层与弹窗下层设 inert */
+let layer='home', sub=null, busy=false, closed=false, D=null;
+function setLayer(l){layer=l;stage.dataset.layer=l;document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===l));syncInert()}
+function syncInert(){document.querySelectorAll('.screen').forEach(s=>s.inert=!!D||s.id!==layer)}
+/* 防双击穿透：切页、开关对话框后 500ms 内不收点击，且只认在那之后才按下的点击 */
+let downAt=0, guardAt=0;
+const guard=()=>guardAt=performance.now();
+addEventListener('pointerdown',()=>downAt=performance.now(),true);
+addEventListener('click',e=>{if(e.target.closest('#veil,.win'))return;
+  if(downAt<guardAt||performance.now()-guardAt<500){e.stopImmediatePropagation();e.preventDefault()}},true);
+function go(l){setLayer(l);guard();busy=true;setTimeout(()=>busy=false,300)}
+function blackout(text,back){closed=true;veil.textContent=text;veil.classList.add('on');
+  veil.onclick=()=>{veil.classList.remove('on');veil.onclick=null;closed=false;if(D)closeDlg();if(back)back()}}
+
+/* 悬停即选中，但只认鼠标真的移动过：切页、重绘、滚动后浏览器会给静止的鼠标补发 mouseover，不能让它抢走默认项 */
+let mx=-1, my=-1, inMenu=false;
+addEventListener('pointermove',e=>{if(e.clientX===mx&&e.clientY===my)return;mx=e.clientX;my=e.clientY;if(!closed)hover(e.target)});
+function hover(t){
+  if(D){const b=t.closest('#dlg .opt');if(b)dsel(+b.dataset.i);return}
+  if(layer==='home'){if(home.dataset.mode!=='menu')return;const b=t.closest('#tmenu button'),x=t.closest('#ifix');
+    if(b)hsel(+b.dataset.i);else if(x)hsel(HOME.length);else if(inMenu)hsel(0);   // 离开标题菜单：光标回到「开始游戏」
+    inMenu=!!(b||x);return}
+  if(layer==='codex')return whover(t);
+  if(layer!=='sys')return;
+  if(sub){const c=t.closest('#lgrid .lord');if(c&&+c.dataset.i!==LS.f){LS.f=+c.dataset.i;lpaint()}return}
+  const li=t.closest('#olist .row');if(li&&!li.classList.contains('hd')&&+li.dataset.i!==sel[tab])ssel(+li.dataset.i,1,true)}
+
+/* ── 首页标题菜单（没有「退出」，窗口 × 直接关闭） ── */
+const HOME=[{t:'开始游戏',a:'start'},{t:'图鉴',a:'codex'},{t:'深夜与联机',a:'night'},{t:'模组设置',a:'mods'},{t:'存档',a:'save'},{t:'更新',a:'update'}];
+const menu=$('#tmenu'), tcur=$('#tcur'), ifix=$('#ifix'); let hs=0;
+menu.insertAdjacentHTML('beforeend',HOME.map((m,i)=>`<button role="menuitem" tabindex="-1" data-i="${i}" style="animation-delay:${.55+i*.07}s"><span>${m.t}${m.a==='update'?'<img class="bang" id="bang" src="assets/bang.png" alt="有新版本">':''}</span></button>`).join(''));
+const hbtn=[...menu.querySelectorAll('button')];
+/* 有异常横带时，横带里的动作排在菜单最后一项之后 */
+function hsel(i){const n=HOME.length+(ISSUE?1:0);hs=(i+n)%n;const band=hs===HOME.length;
+  hbtn.forEach((b,k)=>b.classList.toggle('sel',k===hs));ifix.classList.toggle('sel',band);
+  tcur.classList.toggle('off',band);if(!band)tcur.style.transform=`translateY(${hs*(ISSUE?36:38)}px)`}
+function hact(i){if(i===HOME.length)return pickDir();const a=HOME[i].a;
+  if(a==='start'){if(G.run)return toGame();if(U.st==='run')return note('更新正在安装','1.9.5 装完后再开始游戏。');launch()}
+  else if(a==='codex')openWiki();else openSys(a)}
+menu.addEventListener('click',e=>{const b=e.target.closest('button');if(b)hact(+b.dataset.i)});
+ifix.addEventListener('click',()=>pickDir());
+/* 「开始游戏」随状态变：游戏运行中改成「切到游戏」，更新安装中置灰；有可装的更新时「更新」带「!」 */
+function paintHome(){hbtn[0].firstChild.textContent=G.run?'切到游戏':'开始游戏';hbtn[0].classList.toggle('off',U.st==='run');
+  const up=hasUpd();$('#bang').hidden=!up;const tb=$('#tbang');if(tb)tb.hidden=!up;paintStatus()}
+function toGame(){openDlg({msg:'已切到游戏窗口',sub:'草图模拟：游戏仍在运行，存档恢复与更新安装要等游戏退出。',esc:0,opts:[['确定'],['模拟游戏已退出',()=>{G.run=false;paintHome()}]]})}
+
+/* 底部状态行：版本、深夜层数、就绪，各段可点直达对应页；和异常横带重复的那段不显示 */
+const status=$('#status');
+function verText(){if(U.st==='run')return `正在${U.kind==='zip'?'安装':'下载'} 1.9.5 · ${Math.round(U.p*100)}%`;
+  if(U.st==='paused')return `${VER} · 1.9.5 下载中断`;
+  if(IMP.st==='fail')return `${VER} · 更新包未通过校验`;
+  if(VER==='1.9.5')return `黑夜君临黄金时代 ${VER}`;
+  return VER+' · '+({checking:'正在检查更新',offline:'未能检查更新'}[C.st]||(IMP.st==='ready'?'本地更新包可安装':'可更新到 1.9.5'))}
+function paintStatus(){const segs=[{t:verText(),go:'update'},{t:S.dn?`深夜 ${S.lv} 层`:'不强制深夜',go:'night',row:S.dn?1:0}];
+  if(G.run)segs.push({t:'游戏运行中',go:'game'});else if(!ISSUE)segs.push(sxOk()?{t:'一切就绪',go:'mods',row:9}:{t:'存档后缀不一致',go:'night',row:8});
+  status.innerHTML=segs.map(s=>`<button tabindex="-1" data-go="${s.go}" data-row="${s.row??''}">${esc(s.t)}</button>`).join('')}
+status.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.go==='game')return toGame();
+  openSys(b.dataset.go,b.dataset.row===''?undefined:+b.dataset.row)});
+function setIssue(on){ISSUE=on?{msg:'没有找到游戏',sub:'记录的文件夹里没有 nightreign.exe，游戏库可能移动过',act:'重新指定游戏所在文件夹'}:null;
+  $('#issue').hidden=!ISSUE;home.classList.toggle('iss',!!ISSUE);
+  if(ISSUE){$('#iMsg').textContent=ISSUE.msg;$('#iSub').textContent=ISSUE.sub;$('#iAct').textContent=ISSUE.act}
+  paintStatus();hsel(Math.min(hs,HOME.length-1))}
+
+/* ── 存档备份：启动前自动备份留 10 份（含恢复前另存的），手动备份另留 3 份、不参与轮换；存档没变化时不重复备份 ── */
+const KIND={auto:'',manual:'手动',pre:'恢复前'};
+const MET={auto:'启动前自动备份 · 保留最近 10 份',manual:'手动备份 · 另留 3 份，不参与轮换',pre:'恢复前自动另存 · 计入最近 10 份'};
+const BK=[['11月6日 21:40','auto'],['11月6日 18:05','auto'],['11月5日 23:47','auto'],['11月5日 20:12','manual'],['11月4日 22:16','auto'],['11月4日 19:03','auto'],
+  ['11月3日 23:30','auto'],['11月2日 21:55','auto'],['11月1日 20:41','auto'],['10月31日 22:08','auto'],['10月30日 21:17','auto']];
+let SAME=true, CLK=22*60+5;             // SAME：当前存档与最新一份备份相同
+const stamp=()=>{const m=CLK++;return `11月6日 ${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`};
+const fname=t=>{const [,M,d,h,m]=t.match(/(\d+)月(\d+)日 (\d+):(\d+)/);return `backup\\NR0000_2026-${M.padStart(2,'0')}-${d.padStart(2,'0')}_${h.padStart(2,'0')}${m}.co2`};
+const lastAuto=()=>BK.find(b=>b[1]!=='manual')[0];
+function addBk(kind){BK.unshift([stamp(),kind]);const man=kind==='manual',cap=man?3:10;
+  const same=BK.map((b,i)=>(b[1]==='manual')===man?i:-1).filter(i=>i>=0);if(same.length>cap)BK.splice(same[same.length-1],1);
+  TABS[2].rows.splice(3,Infinity,...BK.map(bkRow));if(layer==='sys'&&tab===2)stab(2,3);return BK[0][0]}
+const bkRow=([t,k])=>({t,kd:KIND[k],type:'act',ent:'恢复',do:restoreDlg,d:{img:A('fl_copy'),h:`${t} 的存档`,meta:MET[k],
+  p:['按 Enter 恢复到这份存档。恢复前会先把当前存档另存一份，随时可以换回来。'],dt:[fname(t)]}});
+
+/* ── 次级页数据：每页一组单行选项，说明全部放进右侧面板 ── */
+const DIR='D:\\steam\\steamapps\\common\\ELDEN RING NIGHTREIGN\\Game';
+const NJ='me3\\MMV\\me3\\DepthChange\\nighter.json', NR='me3\\MMV\\me3\\SeamlessCoop\\nrsc_settings.ini', CSI='me3\\MMV\\me3\\dll\\ChanceSetter.ini';
+/* 夜王：下标即 nighter.json 编号；[官方中文名, 社区叫法]，官方名取自 NightBossMenuParam 第 0~6 行 */
+const LORDS=[['格拉狄乌斯','三狼'],['艾德雷','大嘴'],['格诺斯塔','蝴蝶与蝎子'],['玛利斯','水母'],['利普拉','山羊'],['弗格尔','人马'],['卡莉果','冰龙']];
+const lordKey=()=>`superNightLordList = [${S.lords.join(', ')}]`;
+/* 夜王头像：游戏自带的普通 / 永夜两套，永夜王格、说明面板、图鉴共用 */
+const lpt=(i,on)=>`assets/wiki/nl_${i}${on?'_ever':''}.webp`;
+const lordsTxt=()=>{const n=S.lords.length;return n===7?'全部':n?`${n} 位`:'无'};
+/* 三项倍率：哪份 nrsc_settings.ini 生效待实测（Game\SeamlessCoop 下另有一份 100/100/100），只在开发模式里写明 */
+const scal=(k,cfg)=>({img:A('fl_dragon'),meta:'多人加成',p:['多人时敌人属性的倍率，100% 为默认。无缝联机最多 6 人同行，人数由模组决定，不需要设置。'],cfg:()=>[NR,`[SCALING] ${cfg} = ${S[k]}`,'待实测：Game\\SeamlessCoop\\nrsc_settings.ini 是否才是生效的那份']});
+const TABS=[
+{k:'night',n:'深夜与联机',ic:'tab_net',rows:[
+  {t:'强制深夜',type:'tog',k:'dn',on:()=>{repaint(1);paintStatus()},d:{img:()=>A('lv_'+S.lv),pc:()=>S.dn?'':'off',meta:'深夜',p:['开启后，每次出征都是深夜。关闭后照常在出征前自己选择。'],lore:'夜不再退去，只会一层深过一层。',cfg:()=>[NJ,`forceDeepNight.enable = ${S.dn}`]}},
+  {t:'深夜层数',type:'num',k:'lv',min:1,max:5,step:1,unit:' 层',off:()=>!S.dn,on:paintStatus,d:{img:()=>A('lv_'+S.lv),meta:'深夜',
+    p:()=>['强制深夜时的层数，1～5 层。整合包的首领数值按深夜 5 层调整。',...(S.dn?[]:['强制深夜关闭时，这一项不生效。'])],cfg:()=>[NJ,`forceDeepNight.level = ${S.lv}`]}},
+  {t:'永夜王',type:'lords',ent:'挑选',do:()=>openLords(),d:{img:()=>lpt(LS.f,true),meta:'深夜',strip:1,
+    p:['选出以永夜王形态出现的夜王，比普通形态更强。按 Enter 或单击逐个挑选；← → 在「无 / 已挑选 / 全部」三档之间切换。','夜王几率模组（ChanceSetter）里这 7 位的永夜几率会一并改成「选中必定、未选不会」，两边设定不会打架。'],
+    cfg:()=>[NJ,lordKey(),CSI,'[everdarkChances.depth1～5] 选中 100 / 未选 0，哈尔莫妮亚保持原值']}},
+  {t:'解锁深夜',type:'tog',k:'ul',d:{img:A('fl_veil'),meta:'深夜',p:['没有解锁深夜的存档，也能选择深夜。'],cfg:()=>[NJ,`forceUnlockDeepNight = ${S.ul}`]}},
+  {type:'hd'},
+  {t:'敌人血量',type:'num',k:'hp',min:10,max:300,step:10,unit:'%',d:scal('hp','health_scaling')},
+  {t:'敌人伤害',type:'num',k:'dmg',min:10,max:300,step:10,unit:'%',d:scal('dmg','damage_scaling')},
+  {t:'敌人架势',type:'num',k:'pos',min:10,max:300,step:10,unit:'%',d:scal('pos','posture_scaling')},
+  {t:'存档后缀',type:'act',vs:()=>sxOk()?SX.me3:'不一致',ent:()=>sxOk()?'':'统一为 co2',do:()=>{if(!sxOk())syncExt()},d:{img:A('fl_copy'),meta:()=>sxOk()?'三处一致':'三处不一致',
+    p:()=>sxOk()?['启动配置、无缝联机与夜王几率模组的存档后缀一致，都是 co2。']:['启动配置与无缝联机用 co2，夜王几率模组（ChanceSetter）找的却是 .CL_SAVE，读不到存档，夜王防重复与地图记录一直没有生效。','按 Enter 把三处统一为 co2。'],
+    cfg:()=>['褪色燃烧.me3 · savefile = "NR0000.co2"',`${NR} · [SAVE] save_file_extension = co2`,`${CSI} · autoExtension = .${SX.cs}`]}},
+]},
+{k:'mods',n:'模组设置',ic:'tab_option',rows:[
+  {t:'属性分配面板',type:'tog',k:'ui',d:{img:A('fl_levelup'),meta:'属性分配模组',p:['遗物装配界面上的属性分配按钮与面板，可以随时重新分配属性点。键盘按 F6 打开，手柄按 L3。'],cfg:['StatAlloc\\nr_stat_alloc.toml · [ui] enabled']}},
+  {t:'锻造石强化时词条同步升档',type:'tog',k:'wp',d:{img:A('fl_forge'),p:['用锻造石强化武器时，武器上的词条跟着升一档。'],cfg:['[weapon_passive] enabled']}},
+  {t:'初始武器随机词条',type:'tog',k:'sw',d:{img:A('fl_arts'),p:['出征时，初始武器随机带上 1 条词条。'],cfg:['[starting_weapons] random_passive']}},
+  {t:'首领球锻造石【３】概率',type:'num',k:'ss',min:0,max:90,step:5,unit:'%',d:{img:A('fl_runes'),p:['首领掉落球的第三个选项里，出现锻造石【３】的概率，范围 0%～90%。'],cfg:()=>[`[boss_loot] smithing_stone_percent = ${S.ss}`]}},
+  {t:'锻造台继承词条',type:'tog',k:'pi',d:{img:A('fl_stone'),p:['锻造台多出「继承词条」一项，可以把一把武器的词条整套转到另一把上。'],cfg:['[passive_inherit] enabled']}},
+  {t:'启动前备份存档',type:'tog',k:'bk',d:{img:A('fl_copy'),p:['每次开始游戏前复制一份 NR0000.co2，保留最近 10 份；存档没有变化时不重复备份。手动备份另外保留，不参与轮换。'],lore:'记下此刻，免得长夜吞没来路。'}},
+  {t:'游戏启动后',type:'pick',k:'after',opts:['隐入托盘','保持窗口','关闭启动器'],d:{img:A('fl_sleep'),p:['游戏窗口出现之后，启动器怎样处理自己。隐入托盘时动画全部停下，不和游戏抢资源。']}},
+  {t:'低特效',type:'tog',k:'lowfx',on:motion,d:{img:A('fl_veil'),p:['停掉启动器的余烬动画和柔光呼吸，只留静帧。不影响游戏画面。']}},
+  {t:'整理问题记录',type:'act',do:()=>collectLogs(),d:{img:A('fl_scroll'),p:['把 me3 日志、无缝联机崩溃转储和启动器日志打成一个 zip 放到桌面，并打开所在文件夹。崩溃转储只带最近 3 份，免得 zip 太大。'],dt:['%LOCALAPPDATA%\\garyttierney\\me3\\data\\logs\\褪色燃烧','Game\\SeamlessCoop\\crashdumps']}},
+  {t:'游戏所在文件夹',type:'path',v:'…\\ELDEN RING NIGHTREIGN\\Game',ent:'重新指定',do:()=>pickDir(),d:{img:A('fl_dresser'),p:['第一次运行时自动找到。移动过游戏库时，按 Enter 重新指定。'],dt:[DIR]}},
+  {t:'关于',type:'ro',v:'1.9.4',d:{img:'assets/logo.webp',wide:1,h:'黑夜君临黄金时代',p:['GoldenAge 移植与属性分配等模组的整合包。'],dt:()=>[`整合包 ${VER}`,'启动器 0.1.0','me3 0.10.1','游戏 1.03.3']}},
+]},
+{k:'save',n:'存档',ic:'tab_save',rows:[
+  {t:'立即备份',type:'act',do:()=>backupNow(),d:{img:A('fl_copy'),meta:'当前存档 NR0000.co2',p:['把当前存档另存一份手动备份。手动备份最多留 3 份，不会被启动前的自动备份挤掉。'],lore:'倒在夜里的，可以从记下的地方重来。',dt:['%APPDATA%\\Nightreign\\<SteamID>\\NR0000.co2','最后写入 11月6日 21:40']}},
+  {t:'打开存档文件夹',type:'act',do:()=>note('已打开存档文件夹','','%APPDATA%\\Nightreign\\<SteamID>'),d:{img:A('tab_save'),p:['在资源管理器里打开存档所在的文件夹。'],dt:['%APPDATA%\\Nightreign\\<SteamID>']}},
+  {type:'hd'},
+  ...BK.map(bkRow),
+]},
+{k:'update',n:'更新',ic:'tab_update',rows:[]},     // 列表由 updRows() 按检查 / 导入 / 安装状态生成
+];
+let tab=0; const sel=TABS.map(T=>Math.max(0,T.rows.findIndex(r=>r.type!=='hd')));
+const rows=()=>TABS[tab].rows, tabrow=$('#tabrow');
+tabrow.innerHTML=TABS.map((t,i)=>`<button class="tab" tabindex="-1" data-i="${i}"><img class="tc" src="${A('tab_cursor')}" alt=""><img class="ic" src="${A(t.ic)}" alt=""><span class="tl">${t.n}${t.k==='update'?'<img class="nb" id="tbang" src="assets/bang.png" alt="有新版本">':''}</span></button>`).join('');
+tabrow.addEventListener('click',e=>{const b=e.target.closest('.tab');if(b)stab(+b.dataset.i)});
+$('#tprev').onclick=()=>stab(tab-1); $('#tnext').onclick=()=>stab(tab+1);
+
+/* 取值一律是法环式「‹ 值 ›」；到边界停住，箭头变暗 */
+function arrows(txt,lo,hi){return `<span class="val"><span class="ar l${lo?' end':''}" data-d="-1"><img src="${A('arrow')}" alt="减少"></span><span class="v">${txt}</span><span class="ar r${hi?' end':''}" data-d="1"><img src="${A('arrow')}" alt="增加"></span></span>`}
+const small=t=>`<span class="val"><span class="v s">${esc(t)}</span></span>`;
+function val(r,off){
+  switch(r.type){
+    case 'tog':return arrows(S[r.k]?'开启':'关闭',!S[r.k],!!S[r.k]);
+    case 'num':return arrows(S[r.k]+r.unit,off||S[r.k]<=r.min,off||S[r.k]>=r.max);
+    case 'pick':return arrows(r.opts[S[r.k]],S[r.k]<=0,S[r.k]>=r.opts.length-1);
+    case 'lords':{const n=S.lords.length;return arrows(lordsTxt(),!n,n===7)}
+    case 'path':return `<span class="pth">${esc(r.v)}</span>`;
+    case 'act':return r.gauge?`<span class="val">${U.st==='run'||U.st==='paused'?`<span class="gauge"><i style="transform:scaleX(${U.p})"></i></span>`:''}<span class="v s">${gText()}</span></span>`:f(r.vs)?small(f(r.vs)):'';
+    case 'busy':return small(r.v);
+    case 'ro':return r.v?`<span class="val"><span class="v">${esc(r.v)}</span></span>`:'';
+  }
+  return '';
+}
+function rowHTML(r,i){
+  if(r.type==='hd')return `<li class="row hd" data-i="${i}"><i></i></li>`;
+  const off=!!(r.off&&r.off());
+  return `<li class="row ${r.type}${off?' off':''}" data-i="${i}">${r.icon?`<img class="ic${r.hc?' hc':''}" src="${r.icon}" alt="">`:''}<span class="lb">${esc(r.t)}${r.kd?`<span class="kd">${r.kd}</span>`:''}</span>${val(r,off)}</li>`}
+function stab(i,row){tab=(i+TABS.length)%TABS.length;const T=TABS[tab];if(T.k==='update')T.rows=updRows();
+  tabrow.querySelectorAll('.tab').forEach((b,k)=>b.classList.toggle('on',k===tab));
+  $('#tname').textContent=T.n;list.innerHTML=T.rows.map(rowHTML).join('');list.scrollTop=0;ssel(row??sel[tab])}
+/* mouse=true 时不自动滚动，免得列表在静止的鼠标下移动 */
+function ssel(i,dir=1,mouse){const R=rows(),n=R.length;i=(i+n)%n;while(R[i].type==='hd')i=(i+dir+n)%n;sel[tab]=i;
+  [...list.children].forEach((li,k)=>li.classList.toggle('sel',k===i));
+  if(!mouse){const li=list.children[i],top=li.offsetTop,bot=top+li.offsetHeight,h=list.clientHeight;
+    if(top<list.scrollTop+36)list.scrollTop=Math.max(0,top-36);else if(bot>list.scrollTop+h-36)list.scrollTop=bot-h+36}
+  sbar();renderDesc(R[i]);hints(R[i])}
+function sbar(){const b=$('#sbar'),h=list.clientHeight,H=list.scrollHeight,more=!sub&&H>h+1;b.hidden=!more;
+  list.classList.toggle('up',more&&list.scrollTop>1);list.classList.toggle('dn',more&&list.scrollTop+h<H-1);if(!more)return;
+  const th=Math.max(48,h*h/H);b.firstChild.style.height=th+'px';b.firstChild.style.transform=`translateY(${list.scrollTop*(h-th)/(H-h)}px)`}
+list.addEventListener('scroll',sbar);
+/* 底部按键提示随当前行和状态变化；不可调的行不提示「调整」 */
+function hints(r){let h=key('key_ud','选择');const off=r.off&&r.off();
+  if(!off&&['tog','num','pick','lords'].includes(r.type))h+=key('key_lr','调整');
+  const ent=r.type==='tog'?'切换':r.gauge?(U.st==='run'?'中止':f(r.ent)):r.do?(r.ent===undefined?'确定':f(r.ent)):'';
+  if(ent)h+=key('key_enter',ent,'Enter');
+  $('#skeys').innerHTML=h+key('key_esc','返回','Escape')}
+function renderDesc(r){const d=r.d||{}, T=TABS[tab], dt=f(d.dt), cfg=DEV&&f(d.cfg);
+  const pc=[d.box?'box':d.wide?'wide':'',r.off&&r.off()?'off':'',f(d.pc)||''].filter(Boolean).join(' ');
+  desc.innerHTML=`<div class="dh"><div class="pic ${pc}"><img src="${f(d.img)||A(T.ic)}" alt=""></div><div><h2>${esc(f(d.h)||r.t)}</h2>${d.meta?`<p class="meta">${esc(f(d.meta))}</p>`:''}</div></div><i class="sep"></i>`
+    +(f(d.p)||[]).map(p=>`<p>${esc(p)}</p>`).join('')
+    +(d.strip?`<div class="strip">${LORDS.map((_,i)=>{const o=S.lords.includes(i);return `<img class="${o?'on':''}" src="${lpt(i,o)}" alt="">`}).join('')}</div>`:'')
+    +(d.chk?`<ul class="chk">${f(d.chk).map(([s,t])=>`<li class="${s}"><img class="${s==='run'?'brz loop':''}" src="${A({ok:'chk_on',fail:'chk_fail'}[s]||'chk_off')}" alt="">${esc(t)}</li>`).join('')}</ul>`:'')
+    +(d.lore?`<p class="lore">${esc(d.lore)}</p>`:'')+(dt?`<p class="dt">${dt.map(wbr).join('<br>')}</p>`:'')+(cfg?`<p class="dt">${cfg.map(wbr).join('<br>')}</p>`:'')}
+function repaint(i){const li=list.children[i],r=rows()[i];if(!li)return;li.outerHTML=rowHTML(r,i);list.children[i].classList.toggle('sel',i===sel[tab])}
+/* 开关按两值处理：← 关、→ 开，到边界停住；Enter 切换。不可调的行直接忽略 */
+function change(i,d){const r=rows()[i];if(r.off&&r.off())return;
+  if(r.type==='tog')S[r.k]=d?d>0:!S[r.k];
+  else if(r.type==='num')S[r.k]=Math.max(r.min,Math.min(r.max,S[r.k]+d*r.step));
+  else if(r.type==='pick')S[r.k]=Math.max(0,Math.min(r.opts.length-1,S[r.k]+d));
+  else if(r.type==='lords'&&d)lpreset(d);
+  else return;
+  repaint(i);if(r.on)r.on();if(i===sel[tab]){renderDesc(r);hints(r)}}
+/* Enter：只执行当前行或进入，绝不触发开始游戏 */
+function sact(i){const r=rows()[i];if(r.type==='tog')change(i,0);else if(r.do)r.do(i)}
+function openSys(k,row){stab(Math.max(0,TABS.findIndex(t=>t.k===k)),row);go('sys')}
+function back(){if(sub)return closeLords();inMenu=false;
+  hsel(layer==='codex'?1:{night:2,mods:3,save:4,update:5}[TABS[tab].k]);go('home')}
+/* 鼠标：单击只选中，改值只认 ←→ 或行内箭头；动作行、永夜王行单击执行 */
+list.addEventListener('click',e=>{const li=e.target.closest('.row');if(!li||li.classList.contains('hd'))return;
+  const i=+li.dataset.i,ar=e.target.closest('.ar'),r=rows()[i];if(i!==sel[tab])ssel(i,1,true);
+  if(ar)change(i,+ar.dataset.d);else if(r.do)r.do(i)});
+/* 点按键提示等同按键；mousedown 不抢焦点 */
+stage.addEventListener('mousedown',e=>{if(e.button===2||e.target.closest('.keys'))e.preventDefault()});   // 右键不抢焦点：查找输入中右键 = 取消输入
+stage.addEventListener('click',e=>{const b=e.target.closest('.keys [data-k]');if(b)onKey(b.dataset.k)});
+/* ── 永夜王：法环物品栏式头像格；Enter / 单击切换，R 全部选中或取消，F 在图鉴中查看，Esc 回到来处 ── */
+const LS={f:0,from:null};               // from='wiki'：从图鉴跳来，Esc 回图鉴
+lgrid.innerHTML=LORDS.map((n,i)=>`<button class="lord" tabindex="-1" data-i="${i}" aria-label="${n[0]}"><img class="fr n" src="${A('slot')}" alt=""><img class="fr l" src="${A('slot_lord')}" alt=""><img class="pt" src="${lpt(i,false)}" alt=""><img class="cur" src="${A('sl_cursor')}" alt=""></button>`).join('');
+/* 进出这一层也走 300ms 冷却：连按两下 Enter，第二下不会穿透到格子上改掉配置 */
+const hold=()=>{busy=true;setTimeout(()=>busy=false,300)};
+function openLords(i){if(i!=null)LS.f=i;sub='lords';sys.classList.add('lords');list.hidden=true;lgrid.hidden=false;sbar();guard();hold();lpaint()}
+function hideLords(){sub=null;sys.classList.remove('lords');lgrid.hidden=true;list.hidden=false}
+function closeLords(){const w=LS.from==='wiki';LS.from=null;hideLords();guard();hold();if(w)return wresume();stab(tab,2)}
+function lpaint(){const on=S.lords.includes(LS.f),all=S.lords.length===7;
+  [...lgrid.children].forEach((c,i)=>{const o=S.lords.includes(i),pt=c.querySelector('.pt'),src=lpt(i,o);c.classList.toggle('on',o);c.classList.toggle('f',i===LS.f);c.setAttribute('aria-pressed',o);if(!pt.src.endsWith(src))pt.src=src});
+  $('#tname').innerHTML=`永夜王<span class="cnt">${S.lords.length} / 7</span>`;renderLord();
+  $('#skeys').innerHTML=key('key_udlr','选择')+key('key_enter',on?'改回普通':'设为永夜','Enter')+key('key_r',all?'全部取消':'全部选中','r')+key('key_f','图鉴','f')+key('key_esc','返回','Escape')}
+/* 面板头像与格子同一套游戏头像，随当前形态换成永夜之王版本 */
+function renderLord(){const i=LS.f,on=S.lords.includes(i);
+  desc.innerHTML=`<div class="dh"><div class="pic"><img src="${lpt(i,on)}" alt=""></div><div><h2>${LORDS[i][0]}</h2><p class="meta">${LORDS[i][1]} · 编号 ${i}</p><p class="wtag">${on?'永夜之王形态':'普通形态'}</p></div></div><i class="sep"></i>`
+    +`<p>${on?'以永夜王形态出现，比普通形态更强。':'以普通形态出现。'}</p><p>${on?'按 Enter 或单击，改回普通形态。':'按 Enter 或单击，让它以永夜王形态出现。'}按 F 在图鉴中查看。</p>`
+    +`<p class="lore">夜色最浓之时，王者不再收敛。</p>`+(DEV?`<p class="dt">${wbr(NJ)}<br>${lordKey()}<br>${wbr(CSI)}<br>[everdarkChances] ${LORDS[i][0]} = ${on?100:0}</p>`:'')}
+/* 挑选出的部分组合记住，← → 切到「无 / 全部」再切回来不会丢 */
+function ltoggle(i){S.lords=S.lords.includes(i)?S.lords.filter(x=>x!==i):[...S.lords,i].sort((a,b)=>a-b);if(S.lords.length%7)S.lcustom=[...S.lords];lpaint()}
+function lall(){S.lords=S.lords.length===7?[]:[...ALL];lpaint()}
+function lpreset(d){const n=S.lords.length,st=[[],...(S.lcustom?[S.lcustom]:[]),ALL];
+  const k=Math.max(0,Math.min(st.length-1,(!n?0:n===7?st.length-1:1)+d));S.lords=[...st[k]]}
+/* 方向键：左右不换行（和图鉴网格一致），上下在两行之间对齐 */
+function lmove(k){const r=LS.f<4?0:1,c=r?LS.f-4:LS.f;let n=LS.f;
+  if(k==='ArrowLeft'&&c>0)n--;else if(k==='ArrowRight'&&c<(r?2:3))n++;else if(k==='ArrowUp'&&r)n=c;else if(k==='ArrowDown'&&!r)n=4+Math.min(c,2);
+  if(n!==LS.f){LS.f=n;lpaint()}}
+lgrid.addEventListener('click',e=>{const c=e.target.closest('.lord');if(!c||e.detail>1)return;LS.f=+c.dataset.i;ltoggle(LS.f)});
+
+/* ── 对话框：全宽横带；opts=[[文字,回调]]，def 默认项，esc 为 Esc 对应项；fail 表示启动失败 ── */
+function openDlg(o){D={def:0,esc:o.opts.length-1,...o};stage.classList.add('modal');stage.classList.toggle('mfail',!!o.fail);dlg.className='dlg on'+(o.top?' top':'');
+  dlg.querySelector('.dico').hidden=!o.icon;dlg.querySelector('.msg').textContent=o.msg;
+  dlg.querySelector('.sub').textContent=o.sub||'';dlg.querySelector('.dt').innerHTML=o.dt?wbr(o.dt):'';
+  dlg.querySelector('.opts').innerHTML=o.opts.map((x,i)=>`<button class="opt" tabindex="-1" data-i="${i}"><span>${x[0]}</span></button>`).join('');
+  $('#dkeys').innerHTML=(o.opts.length>1?key('key_lr','选择'):'')+key('key_enter','确定','Enter')+(o.opts.length>1?key('key_esc',o.opts[D.esc][0],'Escape'):'');
+  dsel(D.def);guard();syncInert()}
+function dsel(i){D.s=Math.max(0,Math.min(D.opts.length-1,i));dlg.querySelectorAll('.opt').forEach((b,k)=>b.classList.toggle('sel',k===D.s))}
+function closeDlg(){dlg.classList.remove('on');stage.classList.remove('modal','mfail');D=null;guard();syncInert()}
+function dact(i){const cb=D.opts[i][1];closeDlg();if(cb)cb()}
+dlg.addEventListener('click',e=>{const b=e.target.closest('.opt');if(b&&D)dact(+b.dataset.i)});
+const note=(msg,sub,dt)=>openDlg({msg,sub,dt,opts:[['确定']]});
+function pickDir(ok,cancel){openDlg({msg:'选择游戏所在文件夹',sub:`草图里不弹出系统的文件夹选择框。选好后启动器会检查里面有没有 nightreign.exe${ok?'，找到就从预检重新开始':''}。`,
+  opts:[['确定',()=>{if(ISSUE)setIssue(false);if(ok)ok()}],['取消',cancel]]})}
+function syncExt(){openDlg({msg:'把三处存档后缀统一为 co2？',sub:'夜王几率模组（ChanceSetter）会改为读取 NR0000.co2，夜王防重复与地图记录从下次出征起生效。存档本身不动。',
+  opts:[['统一为 co2',()=>{SX.cs='co2';repaint(8);if(sel[tab]===8&&layer==='sys'){renderDesc(rows()[8]);hints(rows()[8])}paintStatus();note('已统一为 co2','启动配置、无缝联机与夜王几率模组现在读同一份存档。')}],['取消']]})}
+function collectLogs(){note('问题记录已放到桌面','已打开所在文件夹，求助时把这个 zip 发给作者。','黄金时代问题记录_1106-2140.zip　me3 日志 · 无缝联机崩溃转储（最近 3 份）· 启动器日志')}
+function restoreDlg(i){const t=rows()[i].t;
+  if(G.run)return note('游戏运行中，不能恢复存档','先退出游戏，再回来恢复。');
+  openDlg({msg:`恢复到 ${t} 的存档？`,sub:'恢复前会先备份当前存档；游戏运行时不能恢复。',def:1,esc:1,
+    opts:[['恢复',()=>{addBk('pre');SAME=false;note(`已恢复到 ${t} 的存档`,'恢复前的存档已另存一份，排在备份列表最上面。')}],['取消']]})}
+function backupNow(){if(!G.run)return doBackup();
+  openDlg({msg:'游戏正在运行，现在备份可能不完整',sub:'游戏随时会写入存档，备份到的可能是写了一半的文件。',def:1,esc:1,opts:[['仍要备份',doBackup],['取消']]})}
+function doBackup(){const t=addBk('manual');SAME=true;note('已备份当前存档','手动备份另外保留，最多 3 份，不会被启动前的自动备份挤掉。',fname(t))}
+/* 窗口 ×：平时直接关闭（更新是装到临时文件夹再一次性替换，不用确认）；只有启动进行中才确认 */
+function closeApp(){
+  if(L.st!=='run')return blackout('已关闭（草图：点击任意处恢复）',()=>{endLaunch();setLayer('home')});
+  const late=L.i>=STEPS.length-1;
+  openDlg({msg:'启动还没有完成，要关闭启动器吗？',sub:late?'游戏已在唤起，关闭启动器不会中断游戏启动。':'关闭会取消这次启动。',def:0,esc:0,
+    opts:[['继续启动'],['关闭启动器',()=>{clearTimeout(L.t);L.st='idle';blackout('已关闭（草图：点击任意处恢复）',()=>{endLaunch();setLayer('home')})}]]})}
+$('#wclose').onclick=closeApp;
+
+/* ── 更新：检查（C）、本地更新包（IMP）、下载安装（U）三组状态决定更新页列表；每行带固定 key，后台刷新后按 key 找回原来的行 ── */
+const U={st:'idle',p:0,t:0,kind:'net'}, C={st:'avail',last:'今天 21:40',t:0,hold:0}, IMP={st:'none',k:0,t:0,bad:null};
+const ZIP='下载\\黄金时代_1.9.5.zip', SRC='更新源：示例';
+const hasUpd=()=>VER!=='1.9.5'&&(C.st==='avail'||IMP.st==='ready');
+const VSTEP=[['签名已校验','校验签名'],['文件完整，与包内清单一致','核对文件'],['适用于 1.9.4，更新到 1.9.5','确认版本']];
+/* k：已通过几步；bad：失败的那一步与原因 */
+const VCHK=(k,bad)=>VSTEP.map(([ok,run],i)=>bad&&i===bad.at?['fail',bad.why]:i<k?['ok',ok]:i===k&&!bad?['run',run]:['wait',run]);
+/* 导入失败的三种原因：签名不符、文件缺损、版本不适用 */
+const BAD={
+  sig:{at:0,t:'更新包校验未通过',why:'签名不符，不是黄金时代发布的包，或者被改过',p:['这个包的签名和黄金时代的发布签名对不上，可能被别人改过，不能安装。','重新向发布处要一份更新包，或者等连上更新源后在线更新。']},
+  file:{at:1,t:'更新包文件缺损',why:'有 3 个文件与包内清单不一致',p:['包里有文件缺损或被替换，可能是下载没下完整。','重新下载这个更新包后再导入。']},
+  ver:{at:2,t:'更新包版本不适用',why:'这个包是 1.9.3 → 1.9.4，本地已是 1.9.4',p:['这个包把整合包从 1.9.3 更新到 1.9.4，本地已经是 1.9.4，用不上。','需要 1.9.4 → 1.9.5 的更新包，或者连上更新源后在线更新。']},
+};
+const UP=A('tab_update');
+const AVAIL={img:UP,h:'更新到 1.9.5',meta:`约 41 MB · ${SRC}`,p:['先下载到临时文件夹，校验后一次性替换整合包里的文件，中途关闭不会留下半套文件。存档和设置不受影响。'],dt:()=>[`当前 ${VER} → 1.9.5`,'更新清单签名已校验']};
+const CHECK={img:UP,h:'检查更新',meta:SRC,p:['向更新源询问有没有新版本。启动器打开时会自动检查一次。'],dt:()=>[`上次检查 ${C.last} · 有新版本 1.9.5`]};
+const CHECKING={img:UP,pc:'brz loop',h:'正在检查更新',meta:SRC,p:['正在向更新源询问最新版本，通常几秒内就有结果。可以先返回，检查会在后台继续。'],dt:()=>[`当前 ${VER}`]};
+const LATEST={img:UP,pc:'dim',h:()=>`已是最新 ${VER}`,meta:`${SRC} · 签名已校验`,p:['整合包已经是最新版本。按 Enter 再检查一次。'],dt:()=>[`当前 ${VER}`,`上次检查 ${C.last}`]};
+const OFFLINE={img:UP,pc:'off',h:'未能连接更新源',meta:`${SRC} · 连接超时`,p:['可能是网络不通，或者更新源暂时不可用。整合包仍是 1.9.4，可以照常开始游戏。','也可以导入别人发来的更新包（zip），启动器会先校验签名和文件。'],dt:['上次成功检查 今天 18:05']};
+const PAUSED={img:UP,pc:'off',h:'下载中断',meta:`${SRC} · 连接断开`,p:()=>[`下载到 ${(41*U.p).toFixed(1)} / 41 MB 时连接断开。已下载的部分留在临时文件夹里，按 Enter 从断点继续。`,'整合包仍是 1.9.4，可以照常开始游戏；也可以改为导入更新包。']};
+const READY={img:A('fl_scroll'),h:'本地更新包 1.9.5',meta:'更新源：本地文件 · 签名已校验',p:['这个包把整合包从 1.9.4 更新到 1.9.5，内容见左侧。安装方式与在线更新相同，存档和设置不受影响。'],chk:()=>VCHK(3),dt:[ZIP,'约 41 MB']};
+const IMPORT={key:'import',t:'导入更新包',type:'act',vs:'选择 zip',do:()=>pickZip(),d:{img:A('fl_scroll'),meta:'本地 zip',p:['连不上更新源时，可以导入别人发来的更新包。启动器先校验签名与文件，确认是 1.9.4 → 1.9.5 的包，才会列出内容、允许安装。'],dt:['只接受带黄金时代发布签名的 zip']}};
+const REPICK={...IMPORT,t:'重新选择更新包',vs:''};
+const CANCEL={key:'cancel',t:'取消导入',type:'act',do:()=>cancelImport(),d:{img:A('fl_scroll'),p:['放弃这个更新包，回到在线更新。']}};
+/* 更新内容：也是图鉴「本版新增」的唯一来源（wiki.js 按 wiki 字段标记新条目） */
+const NOTES=[{type:'hd'},
+  {t:'超级系列 · 阎魔刀',type:'ro',icon:A('item_24003'),hc:1,wiki:'weapon-89000000',d:{img:A('item_24003'),box:1,h:'阎魔刀',meta:'超级 · 新的最高稀有度',p:['在传说之上新增「超级」稀有度，阎魔刀是第一件。超级物品的掉落球换成深渊血核：赤红内核，外裹紫雾。'],lore:'深渊凝成的血，只为最锋利的刀而亮。'}},
+  {t:'多才多艺 / 世界之眼',type:'ro',icon:A('item_24001'),wiki:'talisman-20015',d:{img:A('item_24001'),box:1,h:'世界之眼',meta:'1.9.5 新增',p:['多才多艺：对所有武器生效，每层攻击力 +2%，最多 9 层（+18%）。世界之眼：多才多艺常驻 9 层，自身不另加攻击力。'],lore:'见过诸般兵器的人，不再挑剔手中之物。'}},
+  {t:'八刻轮印',type:'ro',icon:'assets/wiki/t_20008.webp',wiki:'talisman-20008',d:{img:'assets/wiki/t_20008.webp',box:1,h:'八刻轮印',meta:'1.9.5 新增 · GA 移植',p:['GA 移植的护符，大幅提升各项属性。']}},
+  {t:'开场画面',type:'ro',icon:A('logo_mini'),d:{img:'assets/logo.webp',wide:1,h:'开场画面',meta:'1.9.5 新增',p:['游戏开场换成黄金树标志与余烬背景，标志文字为 NIGHTREIGN / GOLDEN AGE。']}},
+  {t:'宝箱怪掉落',type:'ro',icon:A('bag'),d:{img:A('fl_toolbox'),h:'宝箱怪掉落',meta:'1.9.5 调整',p:['调整了宝箱怪的掉落内容。']}}];
+NOTES.forEach((r,i)=>{r.key='n'+i;if(r.wiki){r.ent='在图鉴中查看';r.do=j=>openWiki(r.wiki,{k:'update',row:j});r.d.p=[...r.d.p,'按 Enter 在图鉴中查看。']}});
+function updRows(){
+  if(U.st==='run')return [{key:U.kind==='zip'?'install':'dl',t:`正在${U.kind==='zip'?'安装':'下载'} 1.9.5`,type:'act',gauge:1,do:()=>install(U.kind),d:U.kind==='zip'?READY:AVAIL},...NOTES];
+  if(U.st==='paused')return [{key:'dl',t:'下载中断',type:'act',gauge:1,ent:'继续下载',do:()=>install('net',true),d:PAUSED},IMPORT,...NOTES];
+  if(IMP.st==='verify')return [{key:'verify',t:'正在校验更新包',type:'busy',v:'黄金时代_1.9.5.zip',d:{img:A('fl_scroll'),meta:'更新源：本地文件',chk:()=>VCHK(IMP.k),dt:[ZIP]}},CANCEL];
+  /* 校验失败：默认项「重新选择更新包」也带着失败原因，光标不用先移到第一行才看得到 */
+  if(IMP.st==='fail'){const b=BAD[IMP.bad],fd={img:A('fl_scroll'),pc:'off',h:b.t,meta:'更新源：本地文件',p:b.p,chk:()=>VCHK(b.at,b),dt:[ZIP]};
+    return [{key:'bad',t:b.t,type:'ro',icon:A('chk_fail'),d:fd},{...REPICK,d:{...fd,p:[...b.p,'按 Enter 重新选择更新包。']}},CANCEL]}
+  if(IMP.st==='ready')return [{key:'install',t:'安装 1.9.5',type:'act',gauge:1,ent:'安装',do:()=>install('zip'),d:READY},REPICK,CANCEL,...NOTES];
+  if(C.st==='checking')return [{key:'checking',t:'正在检查更新',type:'busy',v:'连接更新源',d:CHECKING},IMPORT];
+  if(C.st==='offline')return [{key:'offline',t:'未能连接更新源',type:'ro',icon:A('bang'),d:OFFLINE},{key:'retry',t:'重试',type:'act',do:()=>checkNow(),d:{img:UP,meta:SRC,p:['再连接一次更新源。']}},IMPORT];
+  if(C.st==='latest')return [{key:'latest',t:`已是最新 ${VER}`,type:'act',ent:'检查',vs:`上次检查 ${C.last}`,do:()=>checkNow(),d:LATEST},IMPORT,...NOTES];
+  return [{key:'dl',t:'下载并安装 1.9.5',type:'act',gauge:1,ent:'下载',do:()=>install('net'),d:AVAIL},{key:'check',t:'检查更新',type:'act',vs:`上次检查 ${C.last}`,do:()=>checkNow(),d:CHECK},IMPORT,...NOTES]}
+/* 列表刷新：want 指定要选中的行（玩家自己触发的动作）；不指定时按 key 找回原来的行（后台事件），
+   原来的行没了就落到不会触发安装 / 下载的行；刷新后 300ms 内不收 Enter，免得一下按到新换上来的动作 */
+const SAFE=['verify','checking','check','latest','retry','import','cancel'];
+let enterHold=0;
+function refreshUpd(want){const old=TABS[3].rows[sel[3]],R=updRows(),by=k=>R.findIndex(r=>r.key===k);TABS[3].rows=R;
+  let i=by(want||(old&&old.key));if(i<0)i=SAFE.map(by).find(j=>j>=0)??0;
+  sel[3]=i;enterHold=performance.now()+300;if(layer==='sys'&&tab===3)stab(3,i);paintHome()}
+function gText(){return U.st==='paused'?`${(41*U.p).toFixed(1)} / 41 MB`:U.st!=='run'?'约 41 MB':U.kind==='zip'?`${Math.round(U.p*100)}%`:`${(41*U.p).toFixed(1)} / 41 MB`}
+function gPaint(){if(layer==='sys'&&tab===3){repaint(0);if(sel[3]===0){hints(rows()[0]);renderDesc(rows()[0])}}}
+function checkNow(){if(C.st==='checking')return;C.st='checking';refreshUpd('checking');clearTimeout(C.t);
+  C.t=setTimeout(()=>{C.st=VER==='1.9.5'?'latest':'avail';C.last='刚刚';refreshUpd()},C.hold||2400)}
+function pickZip(){openDlg({msg:'选择更新包',sub:`草图里不弹出系统的文件选择框，假定选了 ${ZIP}。`,opts:[['确定',()=>startVerify()],['取消']]})}
+/* 校验分三步：签名 → 文件 → 版本，全部通过才列出内容、允许安装；bad 模拟某一步失败 */
+function startVerify(bad){clearTimeout(IMP.t);IMP.st='verify';IMP.k=0;IMP.bad=null;refreshUpd('verify');
+  const step=()=>{if(bad&&IMP.k===BAD[bad].at){IMP.st='fail';IMP.bad=bad;return refreshUpd()}
+    if(++IMP.k>=3){IMP.st='ready';return refreshUpd()}if(layer==='sys'&&tab===3&&sel[3]===0)renderDesc(rows()[0]);IMP.t=setTimeout(step,900)};
+  IMP.t=setTimeout(step,900)}
+function cancelImport(){clearTimeout(IMP.t);IMP.st='none';IMP.bad=null;refreshUpd()}
+/* 中止单独确认，不复用同一行的第二次点击；resume 从断点继续 */
+function install(kind,resume){const zip=U.kind==='zip';
+  if(U.st==='run')return openDlg({msg:`中止${zip?'安装':'下载'} 1.9.5？`,sub:`${zip?'已解出的文件':'已下载的部分'}会删掉，整合包保持 1.9.4。`,def:0,esc:0,opts:[[zip?'继续安装':'继续下载'],[zip?'中止安装':'中止下载',abortDl]]});
+  if(G.run)return note('游戏运行中，不能安装更新','先退出游戏，再回来安装。');
+  Object.assign(U,{st:'run',p:resume?U.p:0,kind});refreshUpd(kind==='zip'?'install':'dl');
+  U.t=setInterval(()=>{U.p=Math.min(1,U.p+(kind==='zip'?.02:.008)+Math.random()*.012);
+    if(U.p>=1){clearInterval(U.t);U.st='idle';return installed()}gPaint();paintStatus()},150)}
+function abortDl(){clearInterval(U.t);Object.assign(U,{st:'idle',p:0});refreshUpd('dl')}
+/* 装完后列表变成「已是最新」，首页与更新标签的「!」消失 */
+function installed(){VER='1.9.5';C.st='latest';C.last='刚刚';IMP.st='none';TABS[1].rows[10].v=VER;refreshUpd()}
+
+/* ── 开始游戏：预检 → 备份存档 → 载入配置 → 唤起游戏 ── */
+const STEPS=[
+  {n:'预检',run:'检查游戏文件、me3 与 Steam',ok:'游戏与 me3 齐全，Steam 正在运行',ms:1100},
+  {n:'备份存档',run:'比对并复制 NR0000.co2',ok:bkStep,ms:1200},
+  {n:'载入配置',run:'读取 褪色燃烧.me3',ok:'褪色燃烧.me3 已载入',ms:1100},
+  {n:'唤起游戏',run:'me3 正在唤起游戏，等待窗口出现',ok:'游戏窗口已出现',ms:1600},
+];
+function bkStep(){if(!S.bk)return '已跳过：启动前备份已关闭';if(SAME)return `存档没有变化，沿用 ${lastAuto()} 的备份`;
+  addBk('auto');SAME=true;return '已备份，保留最近 10 份'}
+/* 启动失败按错误类型给动作 */
+const FAILS={
+  nogame:{at:0,d:'没有找到 nightreign.exe',msg:'没有找到游戏',sub:'记录的文件夹里没有 nightreign.exe，游戏库可能移动过。',dt:DIR,
+    opts:[['重新指定游戏所在文件夹',()=>pickDir(relaunch,endLaunch)],['整理问题记录',()=>{endLaunch();collectLogs()}],['返回',endLaunch]]},
+  steam:{at:0,d:'Steam 没有运行',msg:'Steam 没有运行',sub:'黑夜君临要通过 Steam 启动，打开 Steam 并登录后再试。',
+    opts:[['打开 Steam 后重试',retry],['返回',endLaunch]]},
+  me3:{at:3,d:'me3 已退出，游戏窗口没有出现',msg:'me3 没能唤起游戏',sub:'me3 已退出，游戏窗口没有出现。整理问题记录后可以发给作者。',dt:'%LOCALAPPDATA%\\garyttierney\\me3\\data\\logs\\褪色燃烧',
+    opts:[['整理问题记录',()=>{endLaunch();collectLogs()}],['重试',retry],['返回',endLaunch]]},
+};
+const L={st:'idle',i:-1,t:0,fail:null,hold:0}, stepsEl=$('#steps'), lmsg=$('#lmsg');
+const okText=k=>typeof STEPS[k].ok==='function'?STEPS[k].ok():STEPS[k].ok;
+function stepPaint(k,cls,txt){const li=stepsEl.children[k];li.className='step '+cls;li.querySelector('img').src=A({ok:'chk_on',err:'chk_fail'}[cls]||'chk_off');li.querySelector('.d').textContent=txt}
+/* 「唤起游戏」开始前可以 Esc 取消（按键提示可点），开始后不能取消 */
+function lhint(k){$('#lkeys').innerHTML=k<STEPS.length-1?key('key_esc','取消启动','Escape')+'<span>「唤起游戏」开始后就不能取消</span>':k<STEPS.length?'<span>游戏正在唤起，已不能取消</span>':''}
+/* 对话框打开时启动流程暂停，避免失败框盖住关闭确认 */
+function tick(fn,ms){L.t=setTimeout(function g(){if(D)return L.t=setTimeout(g,300);fn()},ms)}
+function launch(o={}){if(L.st!=='idle'||busy||G.run||U.st==='run')return;const from=o.from||0,fail=o.fail||(ISSUE?'nogame':'');
+  Object.assign(L,{st:'run',i:from-1,fail:fail?FAILS[fail]:null,hold:o.hold||0});
+  stepsEl.innerHTML=STEPS.map(s=>`<li class="step"><img src="${A('chk_off')}" alt=""><span class="n">${s.n}</span><span class="d"></span></li>`).join('');
+  for(let k=0;k<from;k++)stepPaint(k,'ok',okText(k));
+  lmsg.classList.remove('on');lhint(from);home.dataset.mode='launch';tick(next,650)}
+function next(){L.i++;if(L.i>=STEPS.length)return finish();
+  const k=L.i,s=STEPS[k],extra=L.hold;L.hold=0;stepPaint(k,'run',s.run);lhint(k);
+  tick(()=>{if(L.fail&&L.fail.at===k)return fail();stepPaint(k,'ok',okText(k));next()},s.ms+extra)}
+/* 启动失败框贴在上方，标志藏起来，不挡住下面失败的那一步 */
+function fail(){L.st='fail';const x=L.fail;stepPaint(L.i,'err',x.d);$('#lkeys').innerHTML='';stepsEl.classList.add('fail');
+  openDlg({icon:1,top:1,fail:1,msg:x.msg,sub:x.sub,dt:x.dt,opts:x.opts})}
+function retry(){stepsEl.classList.remove('fail');L.st='run';L.fail=null;L.i--;next()}
+/* 重新指定文件夹后直接从预检重试 */
+function relaunch(){stepsEl.classList.remove('fail');L.st='idle';launch()}
+function cancelLaunch(){if(L.st==='run'&&L.i<STEPS.length-1)endLaunch()}
+function endLaunch(){clearTimeout(L.t);L.st='idle';home.dataset.mode='menu';stepsEl.classList.remove('fail');lmsg.classList.remove('on');hsel(0);paintHome()}
+function finish(){L.st='done';G.run=true;SAME=false;lhint(STEPS.length);
+  lmsg.textContent=['游戏启动中，启动器将隐入托盘','游戏启动中，启动器保持打开','游戏启动中，启动器将关闭'][S.after];lmsg.classList.add('on');
+  L.t=setTimeout(()=>{if(S.after===1)return endLaunch();
+    blackout(S.after===0?'启动器已隐入托盘（草图：点击任意处回到标题）':'启动器已关闭（草图：点击任意处回到标题）',endLaunch)},2200)}
+
+/* ── 键盘：对话框 > 当前层（永夜王选择画面在次级页之上）；Enter 只在无弹层时生效 ── */
+function onKey(k){
+  if(busy||closed)return false;
+  if(k==='Enter'&&!D&&performance.now()<enterHold)return true;   // 更新页列表刚因后台事件变化
+  if(D){if(k==='ArrowLeft'||k==='ArrowUp')dsel(D.s-1);else if(k==='ArrowRight'||k==='ArrowDown')dsel(D.s+1);
+    else if(k==='Enter')dact(D.s);else if(k==='Escape')dact(D.esc);else return false;return true}
+  if(layer==='home'&&home.dataset.mode==='launch'){if(k==='Escape'){cancelLaunch();return true}return false}
+  if(layer==='home'){if(k==='ArrowUp')hsel(hs-1);else if(k==='ArrowDown')hsel(hs+1);else if(k==='Enter')hact(hs);else return false;return true}
+  if(layer==='codex')return wkey(k);
+  if(sub){if(k.startsWith('Arrow'))lmove(k);else if(k==='Enter')ltoggle(LS.f);else if(k==='r'||k==='R')lall();else if(k==='f'||k==='F')lordWiki();else if(k==='Escape')closeLords();else return false;return true}
+  const i=sel[tab];
+  if(k==='ArrowUp')ssel(i-1,-1);else if(k==='ArrowDown')ssel(i+1,1);else if(k==='ArrowLeft')change(i,-1);else if(k==='ArrowRight')change(i,1);
+  else if(k==='Enter')sact(i);else if(k==='Escape')back();else if(k==='q'||k==='Q')stab(tab-1);else if(k==='e'||k==='E')stab(tab+1);else return false;
+  return true}
+/* 输入法组字中的按键（拼音选字的 Enter、方向键）全部交给输入法 */
+addEventListener('keydown',e=>{if(e.isComposing||e.keyCode===229)return;if(e.key==='Enter'&&e.repeat)return e.preventDefault();if(onKey(e.key))e.preventDefault()});
+
+/* ── ?state= 直达某个状态，方便截图 ── */
+TABS[3].rows=updRows();paintHome();hsel(0);setLayer('home');
+const upd=(fn,key)=>()=>{fn();refreshUpd(key);openSys('update',sel[3])};
+const Q=new URLSearchParams(location.search), QROW=+Q.get('row')||0;   // ?row= 指定次级页的初始选中行
+const ST={home(){},'home-issue':()=>setIssue(true),codex:()=>openWiki(),night:()=>openSys('night',QROW),net:()=>openSys('night'),
+  'night-off':()=>{S.dn=false;paintStatus();openSys('night',1)},
+  lords:()=>{loadLords([0,1,3,4,6]);openSys('night',2);openLords()},   // 截图演示：读到的是部分组合，看得出永夜与普通的区别
+  mods:()=>openSys('mods'),save:()=>openSys('save'),update:()=>openSys('update'),
+  'update-checking':()=>{C.hold=6e5;openSys('update');checkNow()},
+  'update-latest':upd(()=>{VER='1.9.5';C.st='latest';TABS[1].rows[10].v=VER},'latest'),
+  'update-offline':upd(()=>{C.st='offline'},'offline'),
+  'update-import':upd(()=>{IMP.st='ready'},'install'),
+  'update-badsig':upd(()=>{IMP.st='fail';IMP.bad='sig'}),'update-badver':upd(()=>{IMP.st='fail';IMP.bad='ver'}),
+  'update-paused':upd(()=>{U.st='paused';U.p=.46},'dl'),
+  'update-verify':()=>{openSys('update');startVerify();clearTimeout(IMP.t);IMP.k=1;renderDesc(rows()[0])},
+  restore:()=>{openSys('save',3);restoreDlg(3)},downloading:()=>{openSys('update');install('net')},running:()=>{G.run=true;paintHome()},
+  launch:()=>launch({from:2,hold:60000}),'fail-nogame':()=>{setIssue(true);launch()},'fail-steam':()=>launch({fail:'steam'}),
+  'fail-me3':()=>launch({from:3,fail:'me3'}),'close-confirm':()=>{launch({from:1,hold:60000});setTimeout(closeApp,900)}};
+/* 图鉴脚本（wiki.js）在本脚本之后载入，并往 ST 里补 wiki-* 直达状态，所以等文档解析完再分发 */
+addEventListener('DOMContentLoaded',()=>(ST[Q.get('state')]||ST.home)());
+</script>
+<script src="assets/wiki_sample.js"></script>
+<script src="wiki.js"></script>
+</body>
+</html>

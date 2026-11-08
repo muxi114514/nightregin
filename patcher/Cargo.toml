@@ -1,0 +1,19 @@
+[package]
+name = "nr_stat_alloc_patcher"
+version = "1.0.0"
+edition = "2024"
+description = "把 NRStatAlloc 的属性组件 SpEffect 加进任意黑夜君临 regulation.bin（整合包作者用）"
+publish = false
+
+[[bin]]
+name = "nr_stat_alloc_patcher"
+path = "src/main.rs"
+
+[dependencies]
+nr_stat_alloc_shared = { path = "../shared" }
+# regulation 内层为 ZSTD 压缩的 DCX
+zstd = { version = "0.13", default-features = false }
+
+[dependencies.windows-sys]
+version = "0.52"
+features = ["Win32_Foundation", "Win32_Security_Cryptography", "Win32_System_Console"]
